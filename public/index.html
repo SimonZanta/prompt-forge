@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Forge</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #1a1a1a;
+    color: #c6c6c6;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+  button { font-family: inherit; }
+  .app { display: flex; height: 100vh; }
+
+  /* ---------- sidebar ---------- */
+  .sidebar {
+    width: 220px;
+    min-width: 180px;
+    padding: 20px 0 12px;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px 12px;
+    position: relative;
+  }
+  .brand { font-size: 11px; letter-spacing: .16em; color: #5c5c5c; }
+  #new {
+    background: none; border: none;
+    color: #6f6f6f;
+    font-size: 19px; line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  #new:hover { color: #e0e0e0; }
+  #tmenu {
+    position: absolute;
+    right: 12px; top: 26px;
+    z-index: 20;
+    background: #222222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 180px;
+    box-shadow: 0 8px 22px rgba(0,0,0,.45);
+  }
+  #tmenu .tmenu-label { padding: 5px 14px 3px; font-size: 10.5px; letter-spacing: .1em; color: #5c5c5c; }
+  #tmenu div.item { padding: 6px 14px; font-size: 12.5px; color: #b5b5b5; cursor: pointer; }
+  #tmenu div.item:hover { background: #2c2c2c; color: #eee; }
+  #list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  #list li {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 20px;
+    font-size: 13px;
+    color: #7a7a7a;
+    cursor: pointer;
+  }
+  #list li:hover { color: #c9c9c9; }
+  #list li.active { color: #ececec; }
+  #list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #list li .del {
+    visibility: hidden;
+    background: none; border: none;
+    color: #5c5c5c;
+    cursor: pointer;
+    font-size: 15px; line-height: 1;
+    padding: 0 2px;
+  }
+  #list li:hover .del { visibility: visible; }
+  #list li .del:hover { color: #d99; }
+
+  /* ---------- main column ---------- */
+  .main { flex: 1; min-width: 0; display: flex; }
+  .column {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 22px 6px 8px;
+  }
+  #title {
+    flex: 1; min-width: 0;
+    background: none; border: none; outline: none;
+    color: #9a9a9a;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  #title:focus { color: #e0e0e0; }
+  #status { font-size: 10px; color: #5a5a5a; width: 10px; text-align: center; }
+  #copy {
+    background: none; border: none;
+    color: #6f6f6f;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 5px;
+    display: flex;
+  }
+  #copy:hover { color: #e0e0e0; background: rgba(255,255,255,.06); }
+  #copy.ok { color: #8fc98f; }
+  #copy svg { width: 16px; height: 16px; }
+
+  /* ---------- editor ---------- */
+  .editor-wrap { position: relative; flex: 1; }
+  .code-layer {
+    position: absolute; inset: 0;
+    margin: 0;
+    padding: 14px 6px 35vh;
+    font-family: ui-monospace, "Cascadia Code", "Fira Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    tab-size: 2;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: auto;
+  }
+  #highlight { color: #c6c6c6; pointer-events: none; overflow: hidden; }
+  #editor {
+    background: transparent;
+    color: transparent;
+    caret-color: #e8e8e8;
+    border: none; outline: none;
+    resize: none;
+  }
+  #editor::selection { background: rgba(104,140,176,.35); color: transparent; }
+
+  .tg { color: #85a3c4; }
+  .tg-0 { color: #c88484; }
+  .tg-1 { color: #91c884; }
+  .tg-2 { color: #849fc8; }
+  .tg-3 { color: #84c89f; }
+  .tg-4 { color: #bac884; }
+  .tg-5 { color: #84c8c8; }
+  .tg-6 { color: #ba84c8; }
+  .tg-7 { color: #c8ad84; }
+  .tg-8 { color: #c884ad; }
+  .tg-9 { color: #9184c8; }
+  .pu { color: #555555; }
+  .at { color: #c4b385; }
+  .md-b { color: #dcc389; font-weight: 700; }
+  .md-i { color: #b79cc9; font-style: italic; }
+  .md-c { color: #c9a189; background: rgba(255,255,255,.05); border-radius: 3px; }
+  .md-h { color: #8fc4b0; font-weight: 700; }
+  .md-cb { color: #b5bda9; background: rgba(255,255,255,.04); border-radius: 4px; }
+  .md-f { color: #5d6a75; }
+  .ph { color: #494949; }
+
+  /* ---------- suggestions ---------- */
+  #suggest {
+    position: absolute; z-index: 10;
+    background: #232323;
+    border: 1px solid #333;
+    border-radius: 5px;
+    min-width: 190px; max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  #suggest div { padding: 4px 12px; cursor: pointer; color: #a8a8a8; }
+  #suggest div.sel { background: #333; color: #fff; }
+  #suggest b { color: inherit; font-weight: 700; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3d3d3d; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="brand">prompts</span>
+      <button id="new" title="New prompt">+</button>
+      <div id="tmenu" hidden></div>
+    </div>
+    <ul id="list"></ul>
+  </aside>
+  <main class="main">
+    <div class="column">
+      <div class="topbar">
+        <input id="title" placeholder="untitled" spellcheck="false">
+        <span id="status"></span>
+        <button id="copy" title="Copy whole XML to clipboard">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="5" y="5" width="9" height="9" rx="1.5"/>
+            <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
+          </svg>
+        </button>
+      </div>
+      <div class="editor-wrap">
+        <pre id="highlight" class="code-layer" aria-hidden="true"><code id="hl"></code></pre>
+        <textarea id="editor" class="code-layer" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+        <div id="suggest" hidden></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const ta = $('#editor'), hl = $('#hl'), hlPre = $('#highlight');
+const sug = $('#suggest'), titleInput = $('#title'), statusEl = $('#status');
+const wrapEl = document.querySelector('.editor-wrap');
+const tmenu = $('#tmenu');
+
+const DEFAULT_TAGS = [
+  'instruction','context','task','task_description','additional_context','role','rules','constraints',
+  'example','examples','input','output','output_format','expected_output_format',
+  'text_to_summarize','generated_summary','code_block','thinking','format','data','document',
+  'question','answer','system','user'
+];
+
+const TEMPLATES = [
+  { name: 'Blank', content: '' },
+  { name: 'Tasks', content:
+`<prompt>
+  <context>context ...</context>
+  <additional_context>additional context ...</additional_context>
+  <tasks>
+    <task>
+      <task_description></task_description>
+      <example></example>
+    </task>
+    <task>
+      <task_description></task_description>
+      <example></example>
+    </task>
+  </tasks>
+</prompt>
+` },
+  { name: 'Summarization', content:
+`<prompt_summary>
+  <instruction>
+    Summarize the text provided in the \`<text_to_summarize>\` tag in a single concise paragraph.
+    The answer should be placed within the \`<generated_summary>\` tag.
+  </instruction>
+  <text_to_summarize>
+
+  </text_to_summarize>
+  <expected_output_format>
+    <generated_summary>[A concise paragraph here]</generated_summary>
+  </expected_output_format>
+</prompt_summary>
+` },
+  { name: 'General', content:
+`<prompt>
+  <role>
+
+  </role>
+  <instruction>
+
+  </instruction>
+  <context>
+
+  </context>
+  <output_format>
+
+  </output_format>
+</prompt>
+` }
+];
+
+const WRAP_PAIRS = { '"': '"', "'": "'", '(': ')', '[': ']', '{': '}', '`': '`', '*': '*', '_': '_' };
+const FILL_COLUMN = 100;
+
+let prompts = [], current = null, saveTimer = null;
+let sugItems = [], sugIndex = 0, sugPrefix = '';
+let filling = false;
+let prevValue = '';
+
+/* ---------- api ---------- */
+async function api(path, opts) {
+  const r = await fetch('/api' + path, opts);
+  return r.json();
+}
+const jsonOpts = (method, body) => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body)
+});
+
+/* ---------- sidebar ---------- */
+function renderList() {
+  const ul = $('#list');
+  ul.innerHTML = '';
+  for (const p of prompts) {
+    const li = document.createElement('li');
+    if (current && p.id === current.id) li.classList.add('active');
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = p.title || 'Untitled';
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = 'Delete';
+    del.onclick = e => {
+      e.stopPropagation();
+      if (confirm('Delete "' + (p.title || 'Untitled') + '"?')) removePrompt(p.id);
+    };
+    li.append(name, del);
+    li.onclick = () => select(p.id);
+    ul.appendChild(li);
+  }
+}
+
+async function select(id) {
+  await flushSave();
+  current = prompts.find(p => p.id === id) || null;
+  if (!current) return;
+  titleInput.value = current.title;
+  ta.value = current.content || '';
+  prevValue = ta.value;
+  highlight();
+  syncScroll();
+  renderList();
+  setStatus('');
+  closeSug();
+  ta.focus();
+}
+
+async function removePrompt(id) {
+  await fetch('/api/prompts/' + id, { method: 'DELETE' });
+  prompts = prompts.filter(p => p.id !== id);
+  if (current && current.id === id) {
+    current = null;
+    ta.value = ''; titleInput.value = '';
+    prevValue = '';
+    highlight();
+    if (prompts[0]) { renderList(); return select(prompts[0].id); }
+  }
+  renderList();
+}
+
+/* ---------- new prompt / templates ---------- */
+function renderTmenu() {
+  tmenu.innerHTML = '<div class="tmenu-label">NEW FROM TEMPLATE</div>';
+  for (const t of TEMPLATES) {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.textContent = t.name;
+    d.onclick = e => { e.stopPropagation(); tmenu.hidden = true; createPrompt(t); };
+    tmenu.appendChild(d);
+  }
+}
+$('#new').onclick = e => {
+  e.stopPropagation();
+  tmenu.hidden = !tmenu.hidden;
+};
+document.addEventListener('click', () => { tmenu.hidden = true; });
+
+async function createPrompt(t) {
+  await flushSave();
+  const title = t.name === 'Blank' ? 'Untitled' : t.name;
+  const p = await api('/prompts', jsonOpts('POST', { title, content: t.content }));
+  prompts.unshift(p);
+  await select(p.id);
+  titleInput.focus();
+  titleInput.select();
+}
+
+/* ---------- saving ---------- */
+function setStatus(t) { statusEl.textContent = t; }
+function scheduleSave() {
+  if (!current) return;
+  setStatus('●');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 500);
+}
+async function flushSave() {
+  if (saveTimer) { clearTimeout(saveTimer); await doSave(); }
+}
+async function doSave() {
+  saveTimer = null;
+  if (!current) return;
+  current.title = titleInput.value.trim() || 'Untitled';
+  current.content = ta.value;
+  await api('/prompts/' + current.id, jsonOpts('PUT', { title: current.title, content: current.content }));
+  setStatus('');
+  renderList();
+}
+titleInput.addEventListener('input', scheduleSave);
+window.addEventListener('beforeunload', () => { if (saveTimer) doSave(); });
+
+/* ---------- copy ---------- */
+$('#copy').onclick = async () => {
+  await navigator.clipboard.writeText(ta.value);
+  const btn = $('#copy');
+  btn.classList.add('ok');
+  setTimeout(() => btn.classList.remove('ok'), 1200);
+};
+
+/* ---------- highlighting ---------- */
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+const PLACEHOLDER =
+`Write your prompt…
+
+<          tag suggestions, tags auto-close
+</         completes the open tag
+select     then " ' ( [ { \` * _ to wrap it, Tab to indent
+Ctrl+B/I/E **bold** *italic* \`code\`
+\`\`\`lang    fenced code blocks`;
+
+const TOKEN = /(^[ \t]*```[^\n]*(?:\n(?:[\s\S]*?\n[ \t]*```[ \t]*$|[\s\S]*$))?)|(&lt;\/?[A-Za-z_][\w.:-]*[\s\S]*?&gt;)|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(`[^`\n]+`)|(^#{1,6} [^\n]*)/gm;
+
+function tagClass(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 101 + name.charCodeAt(i)) >>> 0;
+  return 'tg tg-' + (h % 10);
+}
+
+function highlight() {
+  if (!ta.value) {
+    hl.innerHTML = '<span class="ph">' + esc(PLACEHOLDER) + '</span>\n';
+    return;
+  }
+  let s = esc(ta.value);
+  s = s.replace(TOKEN, (m, fence, tag, bold, ital, code, head) => {
+    if (fence) {
+      const styled = fence
+        .replace(/^([ \t]*```[^\n]*)/, '<span class="md-f">$1</span>')
+        .replace(/\n([ \t]*```[ \t]*)$/, '\n<span class="md-f">$1</span>');
+      return '<span class="md-cb">' + styled + '</span>';
+    }
+    if (tag) {
+      return tag.replace(/^(&lt;\/?)([\w.:-]+)([\s\S]*?)(\/?&gt;)$/, (_, o, name, mid, c) => {
+        mid = mid.replace(/([A-Za-z_][\w-]*)(=)/g, '<span class="at">$1</span>$2');
+        return '<span class="pu">' + o + '</span><span class="' + tagClass(name) + '">' + name + '</span>' + mid + '<span class="pu">' + c + '</span>';
+      });
+    }
+    if (bold) return '<span class="md-b">' + bold + '</span>';
+    if (ital) return '<span class="md-i">' + ital + '</span>';
+    if (code) return '<span class="md-c">' + code + '</span>';
+    return '<span class="md-h">' + head + '</span>';
+  });
+  hl.innerHTML = s + '\n';
+}
+function syncScroll() {
+  hlPre.scrollTop = ta.scrollTop;
+  hlPre.scrollLeft = ta.scrollLeft;
+}
+ta.addEventListener('scroll', syncScroll);
+
+/* ---------- text insertion (keeps native undo) ---------- */
+function insertText(text) {
+  ta.focus();
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, text); } catch (e) {}
+  if (!ok) {
+    ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+function setCursor(p) { ta.selectionStart = ta.selectionEnd = p; }
+
+/* ---------- editing behaviors ---------- */
+function inCodeContext(before) {
+  const lines = before.split('\n');
+  const line = lines.pop();
+  let fences = 0;
+  for (const l of lines) if (/^[ \t]*```/.test(l)) fences++;
+  if (fences % 2) return true;
+  if (/^[ \t]*```/.test(line)) return true;
+  return (line.split('`').length - 1) % 2 === 1;
+}
+
+function stripCode(text) {
+  return text
+    .replace(/^[ \t]*```[^\n]*\n[\s\S]*?\n[ \t]*```[ \t]*$/gm, '')
+    .replace(/^[ \t]*```[^\n]*[\s\S]*$/m, '')
+    .replace(/`[^`\n]*`/g, '');
+}
+
+function openTagStack(text) {
+  const stack = [];
+  const re = /<(\/?)([A-Za-z_][\w.:-]*)(?:[^<>]*?)(\/?)>/g;
+  let m;
+  while ((m = re.exec(stripCode(text)))) {
+    if (m[3]) continue;                       // self-closing
+    if (m[1]) {                                // closing tag
+      const i = stack.lastIndexOf(m[2]);
+      if (i >= 0) stack.length = i;
+    } else stack.push(m[2]);
+  }
+  return stack;
+}
+
+function handleGt(e) {
+  const pos = ta.selectionStart;
+  if (pos !== ta.selectionEnd) return;
+  const before = ta.value.slice(0, pos);
+  if (inCodeContext(before)) return;
+  const m = before.match(/<([A-Za-z_][\w.:-]*)((?:\s[^<>]*)?)$/);
+  if (!m || /\/\s*$/.test(m[2])) return;
+  e.preventDefault();
+  insertText('></' + m[1] + '>');
+  setCursor(pos + 1);
+  closeSug();
+}
+
+function handleSlash(e) {
+  const pos = ta.selectionStart;
+  if (pos !== ta.selectionEnd) return;
+  const before = ta.value.slice(0, pos);
+  if (!before.endsWith('<')) return;
+  if (inCodeContext(before)) return;
+  const stack = openTagStack(before.slice(0, -1));
+  if (!stack.length) return;
+  e.preventDefault();
+  const name = stack[stack.length - 1];
+  const lm = before.match(/(?:^|\n)([ \t]*)<$/);
+  if (lm && lm[1].length >= 2) {
+    // closing tag on its own line: dedent one level
+    ta.setSelectionRange(pos - 3, pos);
+    insertText('</' + name + '>');
+  } else {
+    insertText('/' + name + '>');
+  }
+  closeSug();
+}
+
+function handleEnter(e) {
+  const pos = ta.selectionStart;
+  const before = ta.value.slice(0, pos);
+  const after = ta.value.slice(ta.selectionEnd);
+  const line = before.slice(before.lastIndexOf('\n') + 1);
+  const indent = (line.match(/^[ \t]*/) || [''])[0];
+  const opensBlock = /<[A-Za-z_][\w.:-]*(?:\s[^<>]*)?>$/.test(before) && !/\/>$/.test(before) && !inCodeContext(before);
+  e.preventDefault();
+  if (opensBlock && /^<\//.test(after)) {
+    insertText('\n' + indent + '  \n' + indent);
+    setCursor(pos + 1 + indent.length + 2);
+  } else if (opensBlock) {
+    insertText('\n' + indent + '  ');
+  } else {
+    insertText('\n' + indent);
+  }
+}
+
+function indentLines(dedent) {
+  const s = ta.selectionStart, e2 = ta.selectionEnd;
+  const v = ta.value;
+  const ls = v.lastIndexOf('\n', s - 1) + 1;
+  let le = v.indexOf('\n', e2);
+  if (le === -1) le = v.length;
+  const out = v.slice(ls, le)
+    .split('\n')
+    .map(l => dedent ? l.replace(/^ {1,2}/, '') : '  ' + l)
+    .join('\n');
+  ta.setSelectionRange(ls, le);
+  insertText(out);
+  ta.selectionStart = ls;
+  ta.selectionEnd = ls + out.length;
+}
+
+function wrapSelection(open, close) {
+  const s = ta.selectionStart, e2 = ta.selectionEnd;
+  const sel = ta.value.slice(s, e2);
+  insertText(open + sel + close);
+  if (!sel) setCursor(s + open.length);
+  else { ta.selectionStart = s + open.length; ta.selectionEnd = s + open.length + sel.length; }
+}
+
+function computeFill(value, pos) {
+  const ls = value.lastIndexOf('\n', pos - 1) + 1;
+  let le = value.indexOf('\n', pos);
+  if (le === -1) le = value.length;
+  if (pos !== le) return null;
+  const line = value.slice(ls, le);
+  if (line.length <= FILL_COLUMN) return null;
+  if (/^[ \t]*<[^\n]*>[ \t]*$/.test(line)) return null;
+  if (inCodeContext(value.slice(0, pos))) return null;
+  const indent = (line.match(/^[ \t]*/) || [''])[0];
+  let brk = line.lastIndexOf(' ', FILL_COLUMN);
+  if (brk <= indent.length) brk = line.lastIndexOf(' ');
+  if (brk <= indent.length) return null;
+  const abs = ls + brk;
+  return {
+    brk: abs,
+    indent,
+    newValue: value.slice(0, abs) + '\n' + indent + value.slice(abs + 1),
+    newCursor: pos + indent.length
+  };
+}
+
+function maybeFill(e) {
+  if (filling || e.inputType !== 'insertText' || !e.data || e.data.length !== 1) return;
+  const f = computeFill(ta.value, ta.selectionStart);
+  if (!f) return;
+  filling = true;
+  ta.setSelectionRange(f.brk, f.brk + 1);
+  insertText('\n' + f.indent);
+  ta.setSelectionRange(f.newCursor, f.newCursor);
+  filling = false;
+}
+
+function diffChange(oldV, newV) {
+  if (oldV === newV) return null;
+  let start = 0;
+  const min = Math.min(oldV.length, newV.length);
+  while (start < min && oldV[start] === newV[start]) start++;
+  let oldEnd = oldV.length, newEnd = newV.length;
+  while (oldEnd > start && newEnd > start && oldV[oldEnd - 1] === newV[newEnd - 1]) { oldEnd--; newEnd--; }
+  return { start, removed: oldEnd - start, inserted: newEnd - start };
+}
+
+function editedTagName(newV, start, inserted) {
+  let i = start;
+  while (i > 0 && /[\w.:-]/.test(newV[i - 1])) i--;
+  let isClosing;
+  if (newV[i - 1] === '<') isClosing = false;
+  else if (newV[i - 1] === '/' && newV[i - 2] === '<') isClosing = true;
+  else return null;
+  let j = start + inserted;
+  while (j < newV.length && /[\w.:-]/.test(newV[j])) j++;
+  const name = newV.slice(i, j);
+  if (name && !/^[A-Za-z_]/.test(name)) return null;
+  return { nameStart: i, nameEnd: j, name, isClosing };
+}
+
+function tagList(text) {
+  const tags = [];
+  const re = /<(\/?)([A-Za-z_][\w.:-]*|(?=>))([^<>]*?)(\/?)>/g;
+  let m;
+  while ((m = re.exec(text))) {
+    if (inCodeContext(text.slice(0, m.index))) continue;
+    tags.push({ isClose: !!m[1], name: m[2], selfClose: !!m[4], nameStart: m.index + 1 + m[1].length });
+  }
+  return tags;
+}
+
+function findPartner(tags, idx) {
+  const t = tags[idx];
+  let depth = 1;
+  if (!t.isClose) {
+    for (let i = idx + 1; i < tags.length; i++) {
+      const o = tags[i];
+      if (o.name !== t.name || o.selfClose) continue;
+      depth += o.isClose ? -1 : 1;
+      if (!depth) return o;
+    }
+  } else {
+    for (let i = idx - 1; i >= 0; i--) {
+      const o = tags[i];
+      if (o.name !== t.name || o.selfClose) continue;
+      depth += o.isClose ? 1 : -1;
+      if (!depth) return o;
+    }
+  }
+  return null;
+}
+
+function computeTagSync(oldV, newV) {
+  const d = diffChange(oldV, newV);
+  if (!d) return null;
+  if (!/^[\w.:-]*$/.test(newV.slice(d.start, d.start + d.inserted))) return null;
+  if (!/^[\w.:-]*$/.test(oldV.slice(d.start, d.start + d.removed))) return null;
+  const span = editedTagName(newV, d.start, d.inserted);
+  if (!span) return null;
+  if (inCodeContext(newV.slice(0, span.nameStart))) return null;
+  let k = span.nameStart;
+  while (k < oldV.length && /[\w.:-]/.test(oldV[k])) k++;
+  if (d.start + d.removed > k) return null;
+  const oldName = oldV.slice(span.nameStart, k);
+  if (oldName === span.name) return null;
+  const tags = tagList(oldV);
+  const idx = tags.findIndex(t => t.nameStart === span.nameStart && t.isClose === span.isClosing);
+  if (idx < 0 || tags[idx].name !== oldName || tags[idx].selfClose) return null;
+  const partner = findPartner(tags, idx);
+  if (!partner) return null;
+  const delta = d.inserted - d.removed;
+  const pStart = partner.nameStart + (partner.nameStart > d.start ? delta : 0);
+  const prefix = partner.isClose ? '</' : '<';
+  if (pStart < prefix.length) return null;
+  if (newV.slice(pStart - prefix.length, pStart) !== prefix) return null;
+  if (newV.slice(pStart, pStart + oldName.length) !== oldName) return null;
+  const nextCh = newV[pStart + oldName.length];
+  if (nextCh !== undefined && /[\w.:-]/.test(nextCh)) return null;
+  return { start: pStart, end: pStart + oldName.length, name: span.name };
+}
+
+function syncTagRename() {
+  const r = computeTagSync(prevValue, ta.value);
+  if (r) {
+    const s = ta.selectionStart, e2 = ta.selectionEnd;
+    const shift = r.name.length - (r.end - r.start);
+    ta.setRangeText(r.name, r.start, r.end, 'preserve');
+    if (r.start < s) ta.setSelectionRange(s + shift, e2 + shift);
+    else ta.setSelectionRange(s, e2);
+  }
+  prevValue = ta.value;
+}
+
+ta.addEventListener('keydown', e => {
+  if (!sug.hidden) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSug(1); return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); moveSug(-1); return; }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acceptSug(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); closeSug(); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+    const k = e.key.toLowerCase();
+    if (k === 'b') { e.preventDefault(); wrapSelection('**', '**'); return; }
+    if (k === 'i') { e.preventDefault(); wrapSelection('*', '*'); return; }
+    if (k === 'e') { e.preventDefault(); wrapSelection('`', '`'); return; }
+    if (k === 's') { e.preventDefault(); flushSave(); return; }
+    return;
+  }
+  const hasSel = ta.selectionStart !== ta.selectionEnd;
+  if (hasSel && WRAP_PAIRS[e.key] && !e.altKey) {
+    e.preventDefault();
+    wrapSelection(e.key, WRAP_PAIRS[e.key]);
+    return;
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (e.shiftKey || hasSel) indentLines(e.shiftKey);
+    else insertText('  ');
+    return;
+  }
+  if (e.shiftKey) {
+    if (e.key === '>') return handleGt(e);
+    return;
+  }
+  if (e.key === '>') return handleGt(e);
+  if (e.key === '/') return handleSlash(e);
+  if (e.key === 'Enter') return handleEnter(e);
+});
+
+/* ---------- tag suggestions ---------- */
+function allTags() {
+  const set = new Set(DEFAULT_TAGS);
+  const scan = text => {
+    const re = /<([A-Za-z_][\w.:-]*)/g;
+    let m;
+    while ((m = re.exec(text || ''))) set.add(m[1]);
+  };
+  for (const p of prompts) scan(p.id === (current && current.id) ? ta.value : p.content);
+  return [...set].sort();
+}
+
+function updateSug() {
+  const pos = ta.selectionStart;
+  if (pos !== ta.selectionEnd) return closeSug();
+  const before = ta.value.slice(0, pos);
+  const m = before.match(/<([A-Za-z_][\w.:-]*)?$/);
+  if (!m) return closeSug();
+  sugPrefix = m[1] || '';
+  sugItems = allTags().filter(t => t.startsWith(sugPrefix) && t !== sugPrefix).slice(0, 12);
+  if (!sugItems.length) return closeSug();
+  sugIndex = 0;
+  renderSug();
+  positionSug();
+  sug.hidden = false;
+}
+
+function renderSug() {
+  sug.innerHTML = '';
+  sugItems.forEach((name, i) => {
+    const d = document.createElement('div');
+    if (i === sugIndex) d.classList.add('sel');
+    d.innerHTML = '<span class="' + tagClass(name) + '"><b>' + esc(sugPrefix) + '</b>' + esc(name.slice(sugPrefix.length)) + '</span>';
+    d.addEventListener('mousedown', ev => { ev.preventDefault(); sugIndex = i; acceptSug(); });
+    sug.appendChild(d);
+  });
+}
+
+function moveSug(dir) {
+  sugIndex = (sugIndex + dir + sugItems.length) % sugItems.length;
+  renderSug();
+  const el = sug.children[sugIndex];
+  if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
+function acceptSug() {
+  const name = sugItems[sugIndex];
+  if (!name) return closeSug();
+  const pos = ta.selectionStart;
+  const rest = name.slice(sugPrefix.length);
+  if (inCodeContext(ta.value.slice(0, pos))) {
+    insertText(rest + '>');
+  } else {
+    insertText(rest + '></' + name + '>');
+    setCursor(pos + rest.length + 1);
+  }
+  closeSug();
+}
+
+function closeSug() {
+  sug.hidden = true;
+  sugItems = [];
+}
+ta.addEventListener('blur', closeSug);
+ta.addEventListener('click', closeSug);
+
+function caretXY() {
+  const style = getComputedStyle(ta);
+  const div = document.createElement('div');
+  for (const p of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','tabSize',
+                   'paddingTop','paddingRight','paddingBottom','paddingLeft','boxSizing','borderWidth']) {
+    div.style[p] = style[p];
+  }
+  div.style.position = 'absolute';
+  div.style.visibility = 'hidden';
+  div.style.whiteSpace = 'pre-wrap';
+  div.style.wordWrap = 'break-word';
+  div.style.width = ta.clientWidth + 'px';
+  div.textContent = ta.value.slice(0, ta.selectionStart);
+  const marker = document.createElement('span');
+  marker.textContent = '​';
+  div.appendChild(marker);
+  document.body.appendChild(div);
+  const xy = { x: marker.offsetLeft, y: marker.offsetTop, lineH: parseFloat(style.lineHeight) || 24 };
+  div.remove();
+  return xy;
+}
+
+function positionSug() {
+  const c = caretXY();
+  let left = c.x - ta.scrollLeft;
+  let top = c.y + c.lineH - ta.scrollTop + 2;
+  left = Math.max(4, Math.min(left, wrapEl.clientWidth - 210));
+  top = Math.max(4, Math.min(top, wrapEl.clientHeight - 60));
+  sug.style.left = left + 'px';
+  sug.style.top = top + 'px';
+}
+
+/* ---------- wire up ---------- */
+ta.addEventListener('input', e => {
+  maybeFill(e);
+  syncTagRename();
+  highlight();
+  syncScroll();
+  scheduleSave();
+  updateSug();
+});
+
+renderTmenu();
+highlight();
+(async () => {
+  prompts = await api('/prompts');
+  renderList();
+  if (prompts[0]) select(prompts[0].id);
+})();
+</script>
+</body>
+</html>
