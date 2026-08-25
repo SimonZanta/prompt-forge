@@ -1,0 +1,5 @@
+prompts.db
+prompts.db-journal
+prompts.db-wal
+prompts.db-shm
+node_modules/
