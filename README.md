@@ -24,3 +24,18 @@ Prompts are stored in `prompts.db` next to `server.ts`.
 - `+` in the sidebar offers templates (blank, tasks, summarization, general skeleton)
 - copy icon (top right) copies the whole XML to the clipboard
 - autosaves 500 ms after you stop typing; Ctrl+S saves immediately
+
+## Database
+
+`prompts.db` (SQLite) is created and seeded automatically on first start and is **not** tracked in git
+(see `.gitignore`). To reset to a clean default state:
+
+```sh
+bun run db:reset   # deletes prompts.db; it is recreated with default data on next start
+```
+
+## Settings
+
+`/settings` holds **custom blocks** (a command like `<my-custom-command>` that expands to an XML snippet)
+and the **permanent tags** offered by the editor's `<` autocomplete. Tags written inside a prompt are
+suggested only within that prompt.

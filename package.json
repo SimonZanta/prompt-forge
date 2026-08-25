@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot run server.ts",
-    "start": "bun run server.ts"
+    "start": "bun run server.ts",
+    "db:reset": "rm -f prompts.db prompts.db-journal prompts.db-wal prompts.db-shm && echo \"prompts.db removed - it is recreated with default data on next start\""
   }
 }

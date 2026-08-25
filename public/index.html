@@ -4,12 +4,120 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prompt Forge</title>
+<script>
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('theme'); } catch (e) {}
+    document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark';
+  })();
+</script>
 <style>
+  :root {
+    --bg: #1a1a1a;
+    --bg-sidebar: #101010;
+    --bg-elevated: #262626;
+    --bg-hover: #2c2c2c;
+    --bg-hover-soft: rgba(255,255,255,.06);
+    --fg: #c6c6c6;
+    --fg-strong: #e0e0e0;
+    --fg-muted: #7a7a7a;
+    --fg-dim: #5c5c5c;
+    --fg-title: #9a9a9a;
+    --fg-list-hover: #c9c9c9;
+    --fg-list-active: #ececec;
+    --fg-menu: #b5b5b5;
+    --fg-menu-hover: #eeeeee;
+    --border: #333333;
+    --shadow: rgba(0,0,0,.45);
+    --accent: #85a3c4;
+    --danger: #dd9999;
+    --ok: #8fc98f;
+    --caret: #e8e8e8;
+    --selection: rgba(104,140,176,.35);
+    --tag-0: #c88484;
+    --tag-1: #91c884;
+    --tag-2: #849fc8;
+    --tag-3: #84c89f;
+    --tag-4: #bac884;
+    --tag-5: #84c8c8;
+    --tag-6: #ba84c8;
+    --tag-7: #c8ad84;
+    --tag-8: #c884ad;
+    --tag-9: #9184c8;
+    --punct: #555555;
+    --attr: #c4b385;
+    --md-b: #dcc389;
+    --md-i: #b79cc9;
+    --md-c: #c9a189;
+    --md-c-bg: rgba(255,255,255,.05);
+    --md-h: #8fc4b0;
+    --md-cb: #b5bda9;
+    --md-cb-bg: rgba(255,255,255,.04);
+    --md-f: #5d6a75;
+    --placeholder: #494949;
+    --suggest-bg: #232323;
+    --suggest-fg: #a8a8a8;
+    --suggest-sel-bg: #333333;
+    --suggest-sel-fg: #ffffff;
+    --scrollbar: #2e2e2e;
+    --scrollbar-hover: #3d3d3d;
+  }
+  html[data-theme="light"] {
+    --bg: #f3f3f1;
+    --bg-sidebar: #e6e6e2;
+    --bg-elevated: #ffffff;
+    --bg-hover: #e9e9e6;
+    --bg-hover-soft: rgba(0,0,0,.06);
+    --fg: #2b2b2b;
+    --fg-strong: #111111;
+    --fg-muted: #7d7d7a;
+    --fg-dim: #9a9a96;
+    --fg-title: #555555;
+    --fg-list-hover: #333333;
+    --fg-list-active: #111111;
+    --fg-menu: #444444;
+    --fg-menu-hover: #111111;
+    --border: #d9d9d5;
+    --shadow: rgba(0,0,0,.14);
+    --accent: #3d6a99;
+    --danger: #c04a4a;
+    --ok: #3c8c3c;
+    --caret: #111111;
+    --selection: rgba(61,106,153,.25);
+    --tag-0: #b03a3a;
+    --tag-1: #3f8a2f;
+    --tag-2: #3a5fb0;
+    --tag-3: #2f8a5a;
+    --tag-4: #857f1f;
+    --tag-5: #1f8585;
+    --tag-6: #8a3fb0;
+    --tag-7: #9a6a1f;
+    --tag-8: #b03a7a;
+    --tag-9: #5a3fb0;
+    --punct: #a0a09c;
+    --attr: #8a6d1f;
+    --md-b: #8a6a10;
+    --md-i: #6f4a8f;
+    --md-c: #9a4f2a;
+    --md-c-bg: rgba(0,0,0,.06);
+    --md-h: #2a7a5f;
+    --md-cb: #4a5a3f;
+    --md-cb-bg: rgba(0,0,0,.045);
+    --md-f: #8c99a3;
+    --placeholder: #b4b4b0;
+    --suggest-bg: #ffffff;
+    --suggest-fg: #444444;
+    --suggest-sel-bg: #e4e4e0;
+    --suggest-sel-fg: #111111;
+    --scrollbar: #cfcfcb;
+    --scrollbar-hover: #b8b8b4;
+  }
+
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    background: #1a1a1a;
-    color: #c6c6c6;
+    background: var(--bg);
+    color: var(--fg);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     overflow: hidden;
   }
@@ -23,6 +131,8 @@
     padding: 20px 0 12px;
     display: flex;
     flex-direction: column;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
   }
   .sidebar-head {
     display: flex;
@@ -31,50 +141,82 @@
     padding: 0 20px 12px;
     position: relative;
   }
-  .brand { font-size: 11px; letter-spacing: .16em; color: #5c5c5c; }
+  .brand { font-size: 11px; letter-spacing: .16em; color: var(--fg-dim); }
   #new {
     background: none; border: none;
-    color: #6f6f6f;
+    color: var(--fg-muted);
     font-size: 19px; line-height: 1;
     cursor: pointer;
     padding: 0 4px;
   }
-  #new:hover { color: #e0e0e0; }
+  #new:hover { color: var(--fg-strong); }
   #tmenu {
     position: absolute;
     right: 12px; top: 26px;
     z-index: 20;
-    background: #222222;
-    border: 1px solid #333;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 4px 0;
     min-width: 180px;
-    box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    box-shadow: 0 8px 22px var(--shadow);
   }
-  #tmenu .tmenu-label { padding: 5px 14px 3px; font-size: 10.5px; letter-spacing: .1em; color: #5c5c5c; }
-  #tmenu div.item { padding: 6px 14px; font-size: 12.5px; color: #b5b5b5; cursor: pointer; }
-  #tmenu div.item:hover { background: #2c2c2c; color: #eee; }
+  #tmenu .tmenu-label { padding: 5px 14px 3px; font-size: 10.5px; letter-spacing: .1em; color: var(--fg-dim); }
+  #tmenu div.item { padding: 6px 14px; font-size: 12.5px; color: var(--fg-menu); cursor: pointer; }
+  #tmenu div.item:hover { background: var(--bg-hover); color: var(--fg-menu-hover); }
   #list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
   #list li {
     display: flex; align-items: center; gap: 6px;
     padding: 5px 20px;
     font-size: 13px;
-    color: #7a7a7a;
+    color: var(--fg-muted);
     cursor: pointer;
   }
-  #list li:hover { color: #c9c9c9; }
-  #list li.active { color: #ececec; }
+  #list li:hover { color: var(--fg-list-hover); }
+  #list li.active { color: var(--fg-list-active); }
   #list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #list li .del {
     visibility: hidden;
     background: none; border: none;
-    color: #5c5c5c;
+    color: var(--fg-dim);
     cursor: pointer;
     font-size: 15px; line-height: 1;
     padding: 0 2px;
   }
   #list li:hover .del { visibility: visible; }
-  #list li .del:hover { color: #d99; }
+  #list li .del:hover { color: var(--danger); }
+  .sidebar-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px 0;
+  }
+  .sidebar-foot button {
+    background: none; border: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sidebar-foot button:hover { color: var(--fg-strong); background: var(--bg-hover-soft); }
+  .sidebar-foot button svg { width: 15px; height: 15px; }
+  .sidebar-foot a {
+    color: var(--fg-muted);
+    padding: 4px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sidebar-foot a:hover { color: var(--fg-strong); background: var(--bg-hover-soft); }
+  .sidebar-foot a svg { width: 15px; height: 15px; }
+  #settings-link { margin-left: auto; }
+  #theme .moon { display: none; }
+  html[data-theme="light"] #theme .sun { display: none; }
+  html[data-theme="light"] #theme .moon { display: block; }
 
   /* ---------- main column ---------- */
   .main { flex: 1; min-width: 0; display: flex; }
@@ -95,22 +237,22 @@
   #title {
     flex: 1; min-width: 0;
     background: none; border: none; outline: none;
-    color: #9a9a9a;
+    color: var(--fg-title);
     font-size: 14px;
     font-family: inherit;
   }
-  #title:focus { color: #e0e0e0; }
-  #status { font-size: 10px; color: #5a5a5a; width: 10px; text-align: center; }
+  #title:focus { color: var(--fg-strong); }
+  #status { font-size: 10px; color: var(--fg-dim); width: 10px; text-align: center; }
   #copy {
     background: none; border: none;
-    color: #6f6f6f;
+    color: var(--fg-muted);
     cursor: pointer;
     padding: 6px;
     border-radius: 5px;
     display: flex;
   }
-  #copy:hover { color: #e0e0e0; background: rgba(255,255,255,.06); }
-  #copy.ok { color: #8fc98f; }
+  #copy:hover { color: var(--fg-strong); background: var(--bg-hover-soft); }
+  #copy.ok { color: var(--ok); }
   #copy svg { width: 16px; height: 16px; }
 
   /* ---------- editor ---------- */
@@ -126,57 +268,111 @@
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow: auto;
+    scrollbar-gutter: stable;
   }
-  #highlight { color: #c6c6c6; pointer-events: none; overflow: hidden; }
+  #highlight { color: var(--fg); pointer-events: none; overflow: hidden; }
   #editor {
     background: transparent;
     color: transparent;
-    caret-color: #e8e8e8;
+    caret-color: var(--caret);
     border: none; outline: none;
     resize: none;
   }
-  #editor::selection { background: rgba(104,140,176,.35); color: transparent; }
+  #editor::selection { background: var(--selection); color: transparent; }
 
-  .tg { color: #85a3c4; }
-  .tg-0 { color: #c88484; }
-  .tg-1 { color: #91c884; }
-  .tg-2 { color: #849fc8; }
-  .tg-3 { color: #84c89f; }
-  .tg-4 { color: #bac884; }
-  .tg-5 { color: #84c8c8; }
-  .tg-6 { color: #ba84c8; }
-  .tg-7 { color: #c8ad84; }
-  .tg-8 { color: #c884ad; }
-  .tg-9 { color: #9184c8; }
-  .pu { color: #555555; }
-  .at { color: #c4b385; }
-  .md-b { color: #dcc389; font-weight: 700; }
-  .md-i { color: #b79cc9; font-style: italic; }
-  .md-c { color: #c9a189; background: rgba(255,255,255,.05); border-radius: 3px; }
-  .md-h { color: #8fc4b0; font-weight: 700; }
-  .md-cb { color: #b5bda9; background: rgba(255,255,255,.04); border-radius: 4px; }
-  .md-f { color: #5d6a75; }
-  .ph { color: #494949; }
+  .tg { color: var(--accent); }
+  .tg-0 { color: var(--tag-0); }
+  .tg-1 { color: var(--tag-1); }
+  .tg-2 { color: var(--tag-2); }
+  .tg-3 { color: var(--tag-3); }
+  .tg-4 { color: var(--tag-4); }
+  .tg-5 { color: var(--tag-5); }
+  .tg-6 { color: var(--tag-6); }
+  .tg-7 { color: var(--tag-7); }
+  .tg-8 { color: var(--tag-8); }
+  .tg-9 { color: var(--tag-9); }
+  .pu { color: var(--punct); }
+  .at { color: var(--attr); }
+  .md-b { color: var(--md-b); font-weight: 700; }
+  .md-i { color: var(--md-i); font-style: italic; }
+  .md-c { color: var(--md-c); background: var(--md-c-bg); border-radius: 3px; }
+  .md-h { color: var(--md-h); font-weight: 700; }
+  .md-cb { color: var(--md-cb); background: var(--md-cb-bg); border-radius: 4px; }
+  .md-f { color: var(--md-f); }
+  .ph { color: var(--placeholder); }
 
   /* ---------- suggestions ---------- */
   #suggest {
     position: absolute; z-index: 10;
-    background: #232323;
-    border: 1px solid #333;
+    background: var(--suggest-bg);
+    border: 1px solid var(--border);
     border-radius: 5px;
     min-width: 190px; max-height: 220px;
     overflow-y: auto;
-    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    box-shadow: 0 6px 18px var(--shadow);
     font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
     font-size: 13px;
   }
-  #suggest div { padding: 4px 12px; cursor: pointer; color: #a8a8a8; }
-  #suggest div.sel { background: #333; color: #fff; }
+  #suggest div { padding: 4px 12px; cursor: pointer; color: var(--suggest-fg); }
+  #suggest div.sel { background: var(--suggest-sel-bg); color: var(--suggest-sel-fg); }
   #suggest b { color: inherit; font-weight: 700; }
+  #suggest div.block { color: var(--attr); }
+  #suggest .badge {
+    float: right;
+    margin-left: 12px;
+    font-size: 9.5px; letter-spacing: .08em;
+    color: var(--attr); opacity: .8;
+    line-height: 20px;
+  }
+
+  /* ---------- modal ---------- */
+  #modal {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--shadow);
+  }
+  #modal[hidden] { display: none; }
+  .modal-card {
+    width: 340px; max-width: calc(100vw - 40px);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 18px 14px;
+    box-shadow: 0 12px 32px var(--shadow);
+  }
+  .modal-card h2 {
+    margin: 0 0 12px;
+    font-size: 11px; font-weight: 500; letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+  #modal-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 7px 10px;
+    font: inherit; font-size: 13.5px;
+    color: var(--fg-strong);
+    outline: none;
+  }
+  #modal-input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 14px; }
+  .modal-actions button {
+    background: none; border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-size: 12.5px;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .modal-actions button:hover { color: var(--fg-strong); background: var(--bg-hover-soft); }
+  .modal-actions button.primary { color: var(--accent); border-color: var(--border); }
+  .modal-actions button.primary:hover { background: var(--bg-hover); }
 
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3d3d3d; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
   ::-webkit-scrollbar-track { background: transparent; }
 </style>
 </head>
@@ -189,6 +385,24 @@
       <div id="tmenu" hidden></div>
     </div>
     <ul id="list"></ul>
+    <div class="sidebar-foot">
+      <button id="theme" title="Toggle dark / light mode">
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <circle cx="8" cy="8" r="3"/>
+          <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.06 1.06M11.54 11.54l1.06 1.06M3.4 12.6l1.06-1.06M11.54 4.46l1.06-1.06"/>
+        </svg>
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13.5 9.8A6 6 0 0 1 6.2 2.5a6 6 0 1 0 7.3 7.3z"/>
+        </svg>
+      </button>
+      <a id="settings-link" href="/settings" title="Settings">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="2.2"/>
+          <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/>
+          <circle cx="8" cy="8" r="4.6"/>
+        </svg>
+      </a>
+    </div>
   </aside>
   <main class="main">
     <div class="column">
@@ -211,19 +425,23 @@
   </main>
 </div>
 
+<div id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">New prompt</h2>
+    <input id="modal-input" spellcheck="false" autocomplete="off">
+    <div class="modal-actions">
+      <button id="modal-cancel" type="button">Cancel</button>
+      <button id="modal-ok" class="primary" type="button">Create</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
 const ta = $('#editor'), hl = $('#hl'), hlPre = $('#highlight');
 const sug = $('#suggest'), titleInput = $('#title'), statusEl = $('#status');
 const wrapEl = document.querySelector('.editor-wrap');
 const tmenu = $('#tmenu');
-
-const DEFAULT_TAGS = [
-  'instruction','context','task','task_description','additional_context','role','rules','constraints',
-  'example','examples','input','output','output_format','expected_output_format',
-  'text_to_summarize','generated_summary','code_block','thinking','format','data','document',
-  'question','answer','system','user'
-];
 
 const TEMPLATES = [
   { name: 'Blank', content: '' },
@@ -279,6 +497,8 @@ const WRAP_PAIRS = { '"': '"', "'": "'", '(': ')', '[': ']', '{': '}', '`': '`',
 const FILL_COLUMN = 100;
 
 let prompts = [], current = null, saveTimer = null;
+let blocks = [];
+let permanentTags = [];
 let sugItems = [], sugIndex = 0, sugPrefix = '';
 let filling = false;
 let prevValue = '';
@@ -294,6 +514,49 @@ const jsonOpts = (method, body) => ({
   body: JSON.stringify(body)
 });
 
+/* ---------- modal ---------- */
+const modal = $('#modal'), modalInput = $('#modal-input');
+let modalResolve = null;
+
+function promptName(defaultValue, { title = 'Name', confirmLabel = 'OK' } = {}) {
+  if (modalResolve) modalResolve(null);
+  return new Promise(resolve => {
+    modalResolve = resolve;
+    $('#modal-title').textContent = title;
+    $('#modal-ok').textContent = confirmLabel;
+    modalInput.value = defaultValue || '';
+    modal.hidden = false;
+    modalInput.focus();
+    modalInput.select();
+  });
+}
+function closeModal(result) {
+  if (!modalResolve) return;
+  const r = modalResolve;
+  modalResolve = null;
+  modal.hidden = true;
+  r(result);
+}
+$('#modal-ok').onclick = () => closeModal(modalInput.value);
+$('#modal-cancel').onclick = () => closeModal(null);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(null); });
+modalInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); closeModal(modalInput.value); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeModal(null); }
+});
+
+async function renamePrompt(p) {
+  const name = await promptName(p.title || 'Untitled', { title: 'Rename prompt', confirmLabel: 'Rename' });
+  if (name === null) return;
+  const title = name.trim() || 'Untitled';
+  if (title === p.title) return;
+  await flushSave();
+  await api('/prompts/' + p.id, jsonOpts('PUT', { title, content: p.content || '' }));
+  p.title = title;
+  if (current && current.id === p.id) { current.title = title; titleInput.value = title; }
+  renderList();
+}
+
 /* ---------- sidebar ---------- */
 function renderList() {
   const ul = $('#list');
@@ -304,6 +567,8 @@ function renderList() {
     const name = document.createElement('span');
     name.className = 'name';
     name.textContent = p.title || 'Untitled';
+    name.title = 'Double-click to rename';
+    name.ondblclick = e => { e.stopPropagation(); renamePrompt(p); };
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = '×';
@@ -364,13 +629,15 @@ $('#new').onclick = e => {
 document.addEventListener('click', () => { tmenu.hidden = true; });
 
 async function createPrompt(t) {
+  const defaultTitle = t.name === 'Blank' ? 'Untitled' : t.name;
+  const name = await promptName(defaultTitle, { title: 'New prompt', confirmLabel: 'Create' });
+  if (name === null) return;
+  const title = name.trim() || 'Untitled';
   await flushSave();
-  const title = t.name === 'Blank' ? 'Untitled' : t.name;
   const p = await api('/prompts', jsonOpts('POST', { title, content: t.content }));
   prompts.unshift(p);
   await select(p.id);
-  titleInput.focus();
-  titleInput.select();
+  ta.focus();
 }
 
 /* ---------- saving ---------- */
@@ -395,6 +662,13 @@ async function doSave() {
 }
 titleInput.addEventListener('input', scheduleSave);
 window.addEventListener('beforeunload', () => { if (saveTimer) doSave(); });
+
+/* ---------- theme ---------- */
+$('#theme').onclick = () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('theme', next); } catch (e) {}
+};
 
 /* ---------- copy ---------- */
 $('#copy').onclick = async () => {
@@ -509,6 +783,7 @@ function handleGt(e) {
   const m = before.match(/<([A-Za-z_][\w.:-]*)((?:\s[^<>]*)?)$/);
   if (!m || /\/\s*$/.test(m[2])) return;
   e.preventDefault();
+  if (!m[2] && findBlock(m[1])) { expandBlock(pos - m[0].length, pos, findBlock(m[1])); closeSug(); return; }
   insertText('></' + m[1] + '>');
   setCursor(pos + 1);
   closeSug();
@@ -743,15 +1018,46 @@ ta.addEventListener('keydown', e => {
   if (e.key === 'Enter') return handleEnter(e);
 });
 
+/* ---------- custom blocks ---------- */
+async function loadBlocks() {
+  try {
+    const r = await api('/blocks');
+    if (Array.isArray(r)) blocks = r;
+  } catch (e) {}
+}
+function findBlock(command) {
+  return blocks.find(b => b.command === command) || null;
+}
+/* Replace value[start,end) (the "<command" text) with the block content,
+   re-indented to the line's indentation; cursor goes to the first empty "><" spot. */
+function expandBlock(start, end, block) {
+  const v = ta.value;
+  const ls = v.lastIndexOf('\n', start - 1) + 1;
+  const indent = (v.slice(ls, start).match(/^[ \t]*/) || [''])[0];
+  const lines = (block.content || '').replace(/\r\n?/g, '\n').replace(/\n+$/, '').split('\n');
+  const text = lines.map((l, i) => (i === 0 || !l) ? l : indent + l).join('\n');
+  ta.setSelectionRange(start, end);
+  insertText(text);
+  const empty = text.indexOf('><');
+  setCursor(start + (empty >= 0 ? empty + 1 : text.length));
+}
+/* ---------- permanent tags ---------- */
+async function loadTags() {
+  try {
+    const r = await api('/tags');
+    if (Array.isArray(r)) permanentTags = r.map(t => t.name);
+  } catch (e) { permanentTags = permanentTags || []; }
+}
+function refreshShared() { loadBlocks(); loadTags(); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshShared(); });
+window.addEventListener('focus', refreshShared);
+
 /* ---------- tag suggestions ---------- */
 function allTags() {
-  const set = new Set(DEFAULT_TAGS);
-  const scan = text => {
-    const re = /<([A-Za-z_][\w.:-]*)/g;
-    let m;
-    while ((m = re.exec(text || ''))) set.add(m[1]);
-  };
-  for (const p of prompts) scan(p.id === (current && current.id) ? ta.value : p.content);
+  const set = new Set(permanentTags);
+  const re = /<([A-Za-z_][\w.:-]*)/g;
+  let m;
+  while ((m = re.exec(ta.value))) set.add(m[1]);
   return [...set].sort();
 }
 
@@ -762,7 +1068,13 @@ function updateSug() {
   const m = before.match(/<([A-Za-z_][\w.:-]*)?$/);
   if (!m) return closeSug();
   sugPrefix = m[1] || '';
-  sugItems = allTags().filter(t => t.startsWith(sugPrefix) && t !== sugPrefix).slice(0, 12);
+  const blockItems = blocks
+    .filter(b => b.command.startsWith(sugPrefix))
+    .map(b => ({ name: b.command, block: b }));
+  const tagItems = allTags()
+    .filter(t => t.startsWith(sugPrefix) && t !== sugPrefix && !findBlock(t))
+    .map(t => ({ name: t }));
+  sugItems = [...blockItems, ...tagItems].slice(0, 12);
   if (!sugItems.length) return closeSug();
   sugIndex = 0;
   renderSug();
@@ -772,10 +1084,12 @@ function updateSug() {
 
 function renderSug() {
   sug.innerHTML = '';
-  sugItems.forEach((name, i) => {
+  sugItems.forEach(({ name, block }, i) => {
     const d = document.createElement('div');
     if (i === sugIndex) d.classList.add('sel');
-    d.innerHTML = '<span class="' + tagClass(name) + '"><b>' + esc(sugPrefix) + '</b>' + esc(name.slice(sugPrefix.length)) + '</span>';
+    if (block) d.classList.add('block');
+    d.innerHTML = '<span class="' + (block ? '' : tagClass(name)) + '"><b>' + esc(sugPrefix) + '</b>' + esc(name.slice(sugPrefix.length)) + '</span>'
+      + (block ? '<span class="badge">block</span>' : '');
     d.addEventListener('mousedown', ev => { ev.preventDefault(); sugIndex = i; acceptSug(); });
     sug.appendChild(d);
   });
@@ -789,11 +1103,15 @@ function moveSug(dir) {
 }
 
 function acceptSug() {
-  const name = sugItems[sugIndex];
-  if (!name) return closeSug();
+  const item = sugItems[sugIndex];
+  if (!item) return closeSug();
+  const { name, block } = item;
   const pos = ta.selectionStart;
   const rest = name.slice(sugPrefix.length);
-  if (inCodeContext(ta.value.slice(0, pos))) {
+  const inCode = inCodeContext(ta.value.slice(0, pos));
+  if (block && !inCode) {
+    expandBlock(pos - sugPrefix.length - 1, pos, block);
+  } else if (inCode) {
     insertText(rest + '>');
   } else {
     insertText(rest + '></' + name + '>');
@@ -854,6 +1172,7 @@ ta.addEventListener('input', e => {
 renderTmenu();
 highlight();
 (async () => {
+  await Promise.all([loadBlocks(), loadTags()]);
   prompts = await api('/prompts');
   renderList();
   if (prompts[0]) select(prompts[0].id);
