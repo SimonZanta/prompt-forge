@@ -2,9 +2,16 @@
   "name": "prompt-forge",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "bun --hot run server.ts",
-    "start": "bun run server.ts",
+    "dev": "bun --hot run src/server.ts",
+    "start": "bun run src/server.ts",
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit",
     "db:reset": "rm -f prompts.db prompts.db-journal prompts.db-wal prompts.db-shm && echo \"prompts.db removed - it is recreated with default data on next start\""
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^5.9.3"
   }
 }
