@@ -1,6 +1,20 @@
 prompts.db
 prompts.db-journal
+/prompts/
 prompts.db-wal
 prompts.db-shm
 node_modules/
+
+# IDE / tooling / environment files
 .idea/
+.vscode
+.claude/
+.mcp.json
+.gitconfig
+.gitmodules
+.bashrc
+.bash_profile
+.profile
+.zshrc
+.zprofile
+.ripgreprc

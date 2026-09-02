@@ -11,6 +11,11 @@ const cancelButton = queryElement<HTMLButtonElement>("#modal-cancel");
 /** Resolves the currently open dialog; `null` when none is open. */
 let resolveOpenDialog: ((value: string | null) => void) | null = null;
 
+/** Whether the name dialog is currently waiting for the user. */
+export function isNameDialogOpen(): boolean {
+  return resolveOpenDialog !== null;
+}
+
 interface NameDialogOptions {
   title?: string;
   confirmLabel?: string;

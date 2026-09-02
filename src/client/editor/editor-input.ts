@@ -1,4 +1,5 @@
 import { scheduleSave } from "./autosave.ts";
+import { scheduleCommandCheck } from "./command-extraction.ts";
 import { editorTextarea } from "./elements.ts";
 import { refreshHighlight, syncHighlightScroll } from "./highlight-layer.ts";
 import { computeLineFill } from "./line-fill.ts";
@@ -44,6 +45,7 @@ function handleEditorInput(event: Event): void {
   syncHighlightScroll();
   scheduleSave();
   updateSuggestions();
+  scheduleCommandCheck();
 }
 
 export function bindEditorInput(): void {

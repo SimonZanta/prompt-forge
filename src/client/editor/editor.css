@@ -8,6 +8,23 @@
   flex-direction: column;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+/* Two panes (folders | prompts) side by side; opening a folder slides the prompts pane in. */
+.slider {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  width: 200%;
+  transform: translateX(0);
+  transition: transform .28s ease;
+}
+.sidebar.in-folder .slider { transform: translateX(-50%); }
+.pane {
+  width: 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .sidebar-head {
   display: flex;
@@ -17,14 +34,20 @@
   position: relative;
 }
 .brand { font-size: 11px; letter-spacing: .16em; color: var(--fg-dim); }
-#new {
+#folder-name {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: left;
+}
+#new, #new-folder, #back {
   background: none; border: none;
   color: var(--fg-muted);
   font-size: 19px; line-height: 1;
   cursor: pointer;
   padding: 0 4px;
 }
-#new:hover { color: var(--fg-strong); }
+#new:hover, #new-folder:hover, #back:hover { color: var(--fg-strong); }
+#back { font-size: 17px; margin-left: -6px; }
 #tmenu {
   position: absolute;
   right: 12px; top: 26px;
@@ -39,18 +62,19 @@
 #tmenu .tmenu-label { padding: 5px 14px 3px; font-size: 10.5px; letter-spacing: .1em; color: var(--fg-dim); }
 #tmenu div.item { padding: 6px 14px; font-size: 12.5px; color: var(--fg-menu); cursor: pointer; }
 #tmenu div.item:hover { background: var(--bg-hover); color: var(--fg-menu-hover); }
-#list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
-#list li {
+.side-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.side-list li {
   display: flex; align-items: center; gap: 6px;
   padding: 5px 20px;
   font-size: 13px;
   color: var(--fg-muted);
   cursor: pointer;
 }
-#list li:hover { color: var(--fg-list-hover); }
-#list li.active { color: var(--fg-list-active); }
-#list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#list li .del {
+.side-list li:hover { color: var(--fg-list-hover); }
+.side-list li.active { color: var(--fg-list-active); }
+.side-list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-list li .count { font-size: 10.5px; color: var(--fg-dim); }
+.side-list li .del {
   visibility: hidden;
   background: none; border: none;
   color: var(--fg-dim);
@@ -58,8 +82,8 @@
   font-size: 15px; line-height: 1;
   padding: 0 2px;
 }
-#list li:hover .del { visibility: visible; }
-#list li .del:hover { color: var(--danger); }
+.side-list li:hover .del { visibility: visible; }
+.side-list li .del:hover { color: var(--danger); }
 .sidebar-foot {
   display: flex;
   align-items: center;
