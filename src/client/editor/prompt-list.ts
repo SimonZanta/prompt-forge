@@ -1,6 +1,7 @@
-import type { Prompt } from "../../prompts/index.ts";
+import type { Prompt, PromptListItem } from "../../prompts/index.ts";
 import { apiRequest, jsonRequestOptions } from "../shared/api.ts";
-import { flushPendingSave, setSaveStatus } from "./autosave.ts";
+import { folderApiPath, promptApiPath } from "./api-paths.ts";
+import { cancelPendingSave, flushPendingSave, setSaveStatus } from "./autosave.ts";
 import { editorTextarea, newPromptButton, promptListElement, templateMenu, titleInput } from "./elements.ts";
 import { refreshHighlight, syncHighlightScroll } from "./highlight-layer.ts";
 import { askForName } from "./modal.ts";
@@ -8,17 +9,32 @@ import { editorState } from "./state.ts";
 import { closeSuggestions } from "./suggestions.ts";
 import { PROMPT_TEMPLATES, type PromptTemplate } from "./templates.ts";
 
-/** Sidebar: list of prompts, the "+" template menu, and switching / creating / renaming / deleting prompts. */
+/** Sidebar prompts pane: the file list of the open folder, the "+" template menu,
+    and switching / creating / renaming / deleting prompts. */
+
+/** Empties the editor when the open prompt (or its folder) was deleted. */
+export function clearEditor(): void {
+  editorState.currentPrompt = null;
+  editorTextarea.value = "";
+  titleInput.value = "";
+  editorState.previousValue = "";
+  cancelPendingSave();
+  setSaveStatus("");
+  refreshHighlight();
+}
 
 export function renderPromptList(): void {
   promptListElement.innerHTML = "";
+  const { currentFolder, currentPrompt } = editorState;
   for (const prompt of editorState.prompts) {
     const item = document.createElement("li");
-    if (editorState.currentPrompt && prompt.id === editorState.currentPrompt.id) item.classList.add("active");
+    if (currentPrompt && currentPrompt.folder === currentFolder && currentPrompt.name === prompt.name) {
+      item.classList.add("active");
+    }
 
     const name = document.createElement("span");
     name.className = "name";
-    name.textContent = prompt.title || "Untitled";
+    name.textContent = prompt.name;
     name.title = "Double-click to rename";
     name.ondblclick = (event) => { event.stopPropagation(); renamePrompt(prompt); };
 
@@ -28,22 +44,36 @@ export function renderPromptList(): void {
     deleteButton.title = "Delete";
     deleteButton.onclick = (event) => {
       event.stopPropagation();
-      if (confirm('Delete "' + (prompt.title || "Untitled") + '"?')) deletePromptById(prompt.id);
+      if (confirm('Delete "' + prompt.name + '"?')) deletePromptByName(prompt.name);
     };
 
     item.append(name, deleteButton);
-    item.onclick = () => selectPrompt(prompt.id);
+    item.onclick = () => selectPrompt(prompt.name);
     promptListElement.appendChild(item);
   }
 }
 
-/** Makes the prompt with `promptId` the one being edited (after saving the previous one). */
-export async function selectPrompt(promptId: number): Promise<void> {
+/** Reloads the file list of the open folder from the server. */
+export async function refreshPromptList(): Promise<void> {
+  if (editorState.currentFolder === null) return;
+  editorState.prompts = await apiRequest<PromptListItem[]>(folderApiPath(editorState.currentFolder) + "/prompts");
+  renderPromptList();
+}
+
+/** Opens the prompt named `name` from the current folder (after saving the previous one). */
+export async function selectPrompt(name: string): Promise<void> {
   await flushPendingSave();
-  editorState.currentPrompt = editorState.prompts.find((prompt) => prompt.id === promptId) ?? null;
-  if (!editorState.currentPrompt) return;
-  titleInput.value = editorState.currentPrompt.title;
-  editorTextarea.value = editorState.currentPrompt.content || "";
+  const folder = editorState.currentFolder;
+  if (folder === null) return;
+  let prompt: Prompt;
+  try {
+    prompt = await apiRequest<Prompt>(promptApiPath(folder, name));
+  } catch {
+    return;
+  }
+  editorState.currentPrompt = { folder, name: prompt.name, content: prompt.content || "" };
+  titleInput.value = prompt.name;
+  editorTextarea.value = prompt.content || "";
   editorState.previousValue = editorTextarea.value;
   refreshHighlight();
   syncHighlightScroll();
@@ -54,48 +84,66 @@ export async function selectPrompt(promptId: number): Promise<void> {
 }
 
 /** Deletes a prompt; if it was open, the first remaining prompt is selected. */
-export async function deletePromptById(promptId: number): Promise<void> {
-  await apiRequest("/prompts/" + promptId, { method: "DELETE" });
-  editorState.prompts = editorState.prompts.filter((prompt) => prompt.id !== promptId);
-  if (editorState.currentPrompt && editorState.currentPrompt.id === promptId) {
-    editorState.currentPrompt = null;
-    editorTextarea.value = "";
-    titleInput.value = "";
-    editorState.previousValue = "";
-    refreshHighlight();
+export async function deletePromptByName(name: string): Promise<void> {
+  const folder = editorState.currentFolder;
+  if (folder === null) return;
+  await apiRequest(promptApiPath(folder, name), { method: "DELETE" });
+  editorState.prompts = editorState.prompts.filter((prompt) => prompt.name !== name);
+  const current = editorState.currentPrompt;
+  if (current && current.folder === folder && current.name === name) {
+    clearEditor();
     if (editorState.prompts[0]) {
       renderPromptList();
-      return selectPrompt(editorState.prompts[0].id);
+      return selectPrompt(editorState.prompts[0].name);
     }
   }
   renderPromptList();
 }
 
-export async function renamePrompt(prompt: Prompt): Promise<void> {
-  const enteredName = await askForName(prompt.title || "Untitled", { title: "Rename prompt", confirmLabel: "Rename" });
+export async function renamePrompt(prompt: PromptListItem): Promise<void> {
+  const folder = editorState.currentFolder;
+  if (folder === null) return;
+  const enteredName = await askForName(prompt.name, { title: "Rename prompt", confirmLabel: "Rename" });
   if (enteredName === null) return;
-  const title = enteredName.trim() || "Untitled";
-  if (title === prompt.title) return;
+  const newName = enteredName.trim();
+  if (!newName || newName === prompt.name) return;
   await flushPendingSave();
-  await apiRequest("/prompts/" + prompt.id, jsonRequestOptions("PUT", { title, content: prompt.content || "" }));
-  prompt.title = title;
-  if (editorState.currentPrompt && editorState.currentPrompt.id === prompt.id) {
-    editorState.currentPrompt.title = title;
-    titleInput.value = title;
+  let renamed: Prompt;
+  try {
+    renamed = await apiRequest<Prompt>(promptApiPath(folder, prompt.name), jsonRequestOptions("PUT", { name: newName }));
+  } catch (error) {
+    alert(error instanceof Error ? error.message : String(error));
+    return;
   }
+  const current = editorState.currentPrompt;
+  if (current && current.folder === folder && current.name === prompt.name) {
+    current.name = renamed.name;
+    titleInput.value = renamed.name;
+  }
+  prompt.name = renamed.name;
   renderPromptList();
 }
 
-/** Asks for a title, creates the prompt from the template and opens it. */
+/** Asks for a name, creates the prompt file from the template and opens it. */
 export async function createPromptFromTemplate(template: PromptTemplate): Promise<void> {
-  const defaultTitle = template.name === "Blank" ? "Untitled" : template.name;
-  const enteredName = await askForName(defaultTitle, { title: "New prompt", confirmLabel: "Create" });
-  if (enteredName === null) return;
-  const title = enteredName.trim() || "Untitled";
+  const folder = editorState.currentFolder;
+  if (folder === null) return;
+  const defaultName = template.name === "Blank" ? "Untitled" : template.name;
+  const enteredName = await askForName(defaultName, { title: "New prompt", confirmLabel: "Create" });
+  if (enteredName === null || !enteredName.trim()) return;
   await flushPendingSave();
-  const created = await apiRequest<Prompt>("/prompts", jsonRequestOptions("POST", { title, content: template.content }));
-  editorState.prompts.unshift(created);
-  await selectPrompt(created.id);
+  let created: Prompt;
+  try {
+    created = await apiRequest<Prompt>(
+      folderApiPath(folder) + "/prompts",
+      jsonRequestOptions("POST", { name: enteredName.trim(), content: template.content }),
+    );
+  } catch (error) {
+    alert(error instanceof Error ? error.message : String(error));
+    return;
+  }
+  await refreshPromptList();
+  await selectPrompt(created.name);
   editorTextarea.focus();
 }
 
@@ -122,11 +170,4 @@ export function bindTemplateMenu(): void {
     templateMenu.hidden = !templateMenu.hidden;
   };
   document.addEventListener("click", () => { templateMenu.hidden = true; });
-}
-
-/** Loads all prompts from the server and opens the most recently updated one. */
-export async function loadPrompts(): Promise<void> {
-  editorState.prompts = await apiRequest<Prompt[]>("/prompts");
-  renderPromptList();
-  if (editorState.prompts[0]) await selectPrompt(editorState.prompts[0].id);
 }

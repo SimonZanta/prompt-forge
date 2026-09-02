@@ -1,6 +1,8 @@
+import type { Prompt } from "../../prompts/index.ts";
 import { apiRequest, jsonRequestOptions } from "../shared/api.ts";
+import { promptApiPath } from "./api-paths.ts";
 import { editorTextarea, saveStatusIndicator, titleInput } from "./elements.ts";
-import { renderPromptList } from "./prompt-list.ts";
+import { refreshPromptList } from "./prompt-list.ts";
 import { editorState } from "./state.ts";
 
 const AUTOSAVE_DELAY_MS = 500;
@@ -20,6 +22,12 @@ export function scheduleSave(): void {
   pendingSaveTimer = setTimeout(saveCurrentPrompt, AUTOSAVE_DELAY_MS);
 }
 
+/** Drops a pending save without writing (used when the open prompt is deleted). */
+export function cancelPendingSave(): void {
+  if (pendingSaveTimer) clearTimeout(pendingSaveTimer);
+  pendingSaveTimer = null;
+}
+
 /** Saves immediately if a save is pending (used before switching prompts and on Ctrl+S). */
 export async function flushPendingSave(): Promise<void> {
   if (pendingSaveTimer) {
@@ -28,19 +36,40 @@ export async function flushPendingSave(): Promise<void> {
   }
 }
 
-/** Writes the title and content of the current prompt to the server. */
+/** Writes the content of the current prompt to its file on the server. */
 export async function saveCurrentPrompt(): Promise<void> {
   pendingSaveTimer = null;
   const prompt = editorState.currentPrompt;
   if (!prompt) return;
-  prompt.title = titleInput.value.trim() || "Untitled";
   prompt.content = editorTextarea.value;
-  await apiRequest("/prompts/" + prompt.id, jsonRequestOptions("PUT", { title: prompt.title, content: prompt.content }));
+  await apiRequest(promptApiPath(prompt.folder, prompt.name), jsonRequestOptions("PUT", { content: prompt.content }));
   setSaveStatus("");
-  renderPromptList();
+}
+
+/** The topbar title is the file name: renames the file when committed (Enter / blur), not per keystroke. */
+async function renameCurrentPromptFromTitle(): Promise<void> {
+  const prompt = editorState.currentPrompt;
+  if (!prompt) {
+    titleInput.value = "";
+    return;
+  }
+  const name = titleInput.value.trim();
+  if (!name || name === prompt.name) {
+    titleInput.value = prompt.name;
+    return;
+  }
+  try {
+    const renamed = await apiRequest<Prompt>(promptApiPath(prompt.folder, prompt.name), jsonRequestOptions("PUT", { name }));
+    prompt.name = renamed.name;
+    titleInput.value = renamed.name;
+    if (prompt.folder === editorState.currentFolder) await refreshPromptList();
+  } catch (error) {
+    alert(error instanceof Error ? error.message : String(error));
+    titleInput.value = prompt.name;
+  }
 }
 
 export function bindAutosave(): void {
-  titleInput.addEventListener("input", scheduleSave);
+  titleInput.addEventListener("change", renameCurrentPromptFromTitle);
   window.addEventListener("beforeunload", () => { if (pendingSaveTimer) saveCurrentPrompt(); });
 }
