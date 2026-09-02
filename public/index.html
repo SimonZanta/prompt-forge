@@ -133,6 +133,22 @@
     flex-direction: column;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .slider {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    width: 200%;
+    transform: translateX(0);
+    transition: transform .28s ease;
+  }
+  .sidebar.in-folder .slider { transform: translateX(-50%); }
+  .pane {
+    width: 50%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
   }
   .sidebar-head {
     display: flex;
@@ -142,14 +158,20 @@
     position: relative;
   }
   .brand { font-size: 11px; letter-spacing: .16em; color: var(--fg-dim); }
-  #new {
+  #folder-name {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-align: left;
+  }
+  #new, #new-folder, #back {
     background: none; border: none;
     color: var(--fg-muted);
     font-size: 19px; line-height: 1;
     cursor: pointer;
     padding: 0 4px;
   }
-  #new:hover { color: var(--fg-strong); }
+  #new:hover, #new-folder:hover, #back:hover { color: var(--fg-strong); }
+  #back { font-size: 17px; margin-left: -6px; }
   #tmenu {
     position: absolute;
     right: 12px; top: 26px;
@@ -164,18 +186,19 @@
   #tmenu .tmenu-label { padding: 5px 14px 3px; font-size: 10.5px; letter-spacing: .1em; color: var(--fg-dim); }
   #tmenu div.item { padding: 6px 14px; font-size: 12.5px; color: var(--fg-menu); cursor: pointer; }
   #tmenu div.item:hover { background: var(--bg-hover); color: var(--fg-menu-hover); }
-  #list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
-  #list li {
+  .side-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  .side-list li {
     display: flex; align-items: center; gap: 6px;
     padding: 5px 20px;
     font-size: 13px;
     color: var(--fg-muted);
     cursor: pointer;
   }
-  #list li:hover { color: var(--fg-list-hover); }
-  #list li.active { color: var(--fg-list-active); }
-  #list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #list li .del {
+  .side-list li:hover { color: var(--fg-list-hover); }
+  .side-list li.active { color: var(--fg-list-active); }
+  .side-list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-list li .count { font-size: 10.5px; color: var(--fg-dim); }
+  .side-list li .del {
     visibility: hidden;
     background: none; border: none;
     color: var(--fg-dim);
@@ -183,8 +206,8 @@
     font-size: 15px; line-height: 1;
     padding: 0 2px;
   }
-  #list li:hover .del { visibility: visible; }
-  #list li .del:hover { color: var(--danger); }
+  .side-list li:hover .del { visibility: visible; }
+  .side-list li .del:hover { color: var(--danger); }
   .sidebar-foot {
     display: flex;
     align-items: center;
@@ -378,13 +401,25 @@
 </head>
 <body>
 <div class="app">
-  <aside class="sidebar">
-    <div class="sidebar-head">
-      <span class="brand">prompts</span>
-      <button id="new" title="New prompt">+</button>
-      <div id="tmenu" hidden></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="slider">
+      <div class="pane">
+        <div class="sidebar-head">
+          <span class="brand">folders</span>
+          <button id="new-folder" title="New folder">+</button>
+        </div>
+        <ul id="folder-list" class="side-list"></ul>
+      </div>
+      <div class="pane">
+        <div class="sidebar-head">
+          <button id="back" title="Back to folders">‹</button>
+          <span class="brand" id="folder-name"></span>
+          <button id="new" title="New prompt">+</button>
+          <div id="tmenu" hidden></div>
+        </div>
+        <ul id="list" class="side-list"></ul>
+      </div>
     </div>
-    <ul id="list"></ul>
     <div class="sidebar-foot">
       <button id="theme" title="Toggle dark / light mode">
         <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
@@ -496,7 +531,10 @@ const TEMPLATES = [
 const WRAP_PAIRS = { '"': '"', "'": "'", '(': ')', '[': ']', '{': '}', '`': '`', '*': '*', '_': '_' };
 const FILL_COLUMN = 100;
 
+let folders = [], currentFolder = null;
 let prompts = [], current = null, saveTimer = null;
+let cmdTimer = null, extractingCmd = false;
+const cmdSkip = new Set();
 let blocks = [];
 let permanentTags = [];
 let sugItems = [], sugIndex = 0, sugPrefix = '';
@@ -513,6 +551,8 @@ const jsonOpts = (method, body) => ({
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(body)
 });
+const fPath = f => '/folders/' + encodeURIComponent(f);
+const pPath = (f, n) => fPath(f) + '/prompts/' + encodeURIComponent(n);
 
 /* ---------- modal ---------- */
 const modal = $('#modal'), modalInput = $('#modal-input');
@@ -546,27 +586,127 @@ modalInput.addEventListener('keydown', e => {
 });
 
 async function renamePrompt(p) {
-  const name = await promptName(p.title || 'Untitled', { title: 'Rename prompt', confirmLabel: 'Rename' });
+  const name = await promptName(p.name, { title: 'Rename prompt', confirmLabel: 'Rename' });
   if (name === null) return;
-  const title = name.trim() || 'Untitled';
-  if (title === p.title) return;
+  const newName = name.trim();
+  if (!newName || newName === p.name) return;
   await flushSave();
-  await api('/prompts/' + p.id, jsonOpts('PUT', { title, content: p.content || '' }));
-  p.title = title;
-  if (current && current.id === p.id) { current.title = title; titleInput.value = title; }
+  const r = await api(pPath(currentFolder, p.name), jsonOpts('PUT', { name: newName }));
+  if (r.error) { alert(r.error); return; }
+  if (current && current.folder === currentFolder && current.name === p.name) {
+    current.name = r.name;
+    titleInput.value = r.name;
+  }
+  p.name = r.name;
   renderList();
 }
 
-/* ---------- sidebar ---------- */
+/* ---------- sidebar: folders ---------- */
+const sidebar = $('#sidebar');
+
+function renderFolders() {
+  const ul = $('#folder-list');
+  ul.innerHTML = '';
+  for (const f of folders) {
+    const li = document.createElement('li');
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = f.name;
+    name.title = 'Double-click to rename';
+    name.ondblclick = e => { e.stopPropagation(); renameFolder(f); };
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = f.prompt_count;
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = 'Delete folder';
+    del.onclick = e => {
+      e.stopPropagation();
+      if (confirm('Delete folder "' + f.name + '" and all its prompts?')) removeFolder(f.name);
+    };
+    li.append(name, count, del);
+    li.onclick = () => openFolder(f.name);
+    ul.appendChild(li);
+  }
+}
+
+async function refreshFolders() {
+  const r = await api('/folders');
+  if (Array.isArray(r)) folders = r;
+  renderFolders();
+}
+
+async function createFolder() {
+  const name = await promptName('Untitled', { title: 'New folder', confirmLabel: 'Create' });
+  if (name === null || !name.trim()) return;
+  const r = await api('/folders', jsonOpts('POST', { name: name.trim() }));
+  if (r.error) { alert(r.error); return; }
+  await refreshFolders();
+  openFolder(r.name);
+}
+
+async function renameFolder(f) {
+  const name = await promptName(f.name, { title: 'Rename folder', confirmLabel: 'Rename' });
+  if (name === null) return;
+  const newName = name.trim();
+  if (!newName || newName === f.name) return;
+  await flushSave();
+  const r = await api(fPath(f.name), jsonOpts('PUT', { name: newName }));
+  if (r.error) { alert(r.error); return; }
+  if (currentFolder === f.name) {
+    currentFolder = r.name;
+    $('#folder-name').textContent = r.name;
+  }
+  if (current && current.folder === f.name) current.folder = r.name;
+  await refreshFolders();
+}
+
+async function removeFolder(name) {
+  await fetch('/api' + fPath(name), { method: 'DELETE' });
+  if (current && current.folder === name) clearEditor();
+  if (currentFolder === name) {
+    currentFolder = null;
+    sidebar.classList.remove('in-folder');
+  }
+  await refreshFolders();
+}
+
+async function openFolder(name) {
+  await flushSave();
+  currentFolder = name;
+  $('#folder-name').textContent = name;
+  await refreshPrompts();
+  sidebar.classList.add('in-folder');
+  if (current && current.folder === name) renderList();
+  else if (prompts[0]) select(prompts[0].name);
+}
+
+$('#new-folder').onclick = createFolder;
+$('#back').onclick = () => {
+  sidebar.classList.remove('in-folder');
+  refreshFolders();
+};
+
+/* ---------- sidebar: prompts ---------- */
+function clearEditor() {
+  current = null;
+  ta.value = ''; titleInput.value = '';
+  prevValue = '';
+  clearTimeout(saveTimer); saveTimer = null;
+  setStatus('');
+  highlight();
+}
+
 function renderList() {
   const ul = $('#list');
   ul.innerHTML = '';
   for (const p of prompts) {
     const li = document.createElement('li');
-    if (current && p.id === current.id) li.classList.add('active');
+    if (current && current.folder === currentFolder && current.name === p.name) li.classList.add('active');
     const name = document.createElement('span');
     name.className = 'name';
-    name.textContent = p.title || 'Untitled';
+    name.textContent = p.name;
     name.title = 'Double-click to rename';
     name.ondblclick = e => { e.stopPropagation(); renamePrompt(p); };
     const del = document.createElement('button');
@@ -575,20 +715,27 @@ function renderList() {
     del.title = 'Delete';
     del.onclick = e => {
       e.stopPropagation();
-      if (confirm('Delete "' + (p.title || 'Untitled') + '"?')) removePrompt(p.id);
+      if (confirm('Delete "' + p.name + '"?')) removePrompt(p.name);
     };
     li.append(name, del);
-    li.onclick = () => select(p.id);
+    li.onclick = () => select(p.name);
     ul.appendChild(li);
   }
 }
 
-async function select(id) {
+async function refreshPrompts() {
+  const r = await api(fPath(currentFolder) + '/prompts');
+  if (Array.isArray(r)) prompts = r;
+  renderList();
+}
+
+async function select(name) {
   await flushSave();
-  current = prompts.find(p => p.id === id) || null;
-  if (!current) return;
-  titleInput.value = current.title;
-  ta.value = current.content || '';
+  const r = await api(pPath(currentFolder, name));
+  if (r.error) return;
+  current = { folder: currentFolder, name: r.name, content: r.content || '' };
+  titleInput.value = r.name;
+  ta.value = r.content || '';
   prevValue = ta.value;
   highlight();
   syncScroll();
@@ -598,15 +745,12 @@ async function select(id) {
   ta.focus();
 }
 
-async function removePrompt(id) {
-  await fetch('/api/prompts/' + id, { method: 'DELETE' });
-  prompts = prompts.filter(p => p.id !== id);
-  if (current && current.id === id) {
-    current = null;
-    ta.value = ''; titleInput.value = '';
-    prevValue = '';
-    highlight();
-    if (prompts[0]) { renderList(); return select(prompts[0].id); }
+async function removePrompt(name) {
+  await fetch('/api' + pPath(currentFolder, name), { method: 'DELETE' });
+  prompts = prompts.filter(p => p.name !== name);
+  if (current && current.folder === currentFolder && current.name === name) {
+    clearEditor();
+    if (prompts[0]) { renderList(); return select(prompts[0].name); }
   }
   renderList();
 }
@@ -629,14 +773,15 @@ $('#new').onclick = e => {
 document.addEventListener('click', () => { tmenu.hidden = true; });
 
 async function createPrompt(t) {
+  if (!currentFolder) return;
   const defaultTitle = t.name === 'Blank' ? 'Untitled' : t.name;
   const name = await promptName(defaultTitle, { title: 'New prompt', confirmLabel: 'Create' });
-  if (name === null) return;
-  const title = name.trim() || 'Untitled';
+  if (name === null || !name.trim()) return;
   await flushSave();
-  const p = await api('/prompts', jsonOpts('POST', { title, content: t.content }));
-  prompts.unshift(p);
-  await select(p.id);
+  const p = await api(fPath(currentFolder) + '/prompts', jsonOpts('POST', { name: name.trim(), content: t.content }));
+  if (p.error) { alert(p.error); return; }
+  await refreshPrompts();
+  await select(p.name);
   ta.focus();
 }
 
@@ -654,13 +799,21 @@ async function flushSave() {
 async function doSave() {
   saveTimer = null;
   if (!current) return;
-  current.title = titleInput.value.trim() || 'Untitled';
   current.content = ta.value;
-  await api('/prompts/' + current.id, jsonOpts('PUT', { title: current.title, content: current.content }));
+  await api(pPath(current.folder, current.name), jsonOpts('PUT', { content: current.content }));
   setStatus('');
-  renderList();
 }
-titleInput.addEventListener('input', scheduleSave);
+/* the topbar title is the file name: rename on commit (Enter / blur), not per keystroke */
+titleInput.addEventListener('change', async () => {
+  if (!current) return;
+  const name = titleInput.value.trim();
+  if (!name || name === current.name) { titleInput.value = current ? current.name : ''; return; }
+  const r = await api(pPath(current.folder, current.name), jsonOpts('PUT', { name }));
+  if (r.error) { alert(r.error); titleInput.value = current.name; return; }
+  current.name = r.name;
+  titleInput.value = r.name;
+  if (current.folder === currentFolder) refreshPrompts();
+});
 window.addEventListener('beforeunload', () => { if (saveTimer) doSave(); });
 
 /* ---------- theme ---------- */
@@ -1159,6 +1312,71 @@ function positionSug() {
   sug.style.top = top + 'px';
 }
 
+/* ---------- <command> extraction ---------- */
+/* A complete <command>…</command> element (no name attribute yet, caret outside)
+   is saved as a new .xml prompt file in the current folder, then stamped with
+   name="…" so it is only extracted once. */
+const CMD_TAG_RE = /<command(\s[^<>]*)?>([\s\S]*?)<\/command>/g;
+
+function unwrapFence(s) {
+  const m = s.trim().match(/^```[^\n]*\n?([\s\S]*?)\n?```$/);
+  return (m ? m[1] : s).trim() + '\n';
+}
+
+function scheduleCmdCheck() {
+  clearTimeout(cmdTimer);
+  cmdTimer = setTimeout(checkCommands, 800);
+}
+
+async function checkCommands() {
+  if (!current || extractingCmd || modalResolve) return;
+  const v = ta.value;
+  CMD_TAG_RE.lastIndex = 0;
+  let m;
+  while ((m = CMD_TAG_RE.exec(v))) {
+    const attrs = m[1] || '';
+    if (/\bname\s*=/.test(attrs)) continue;
+    if (!m[2].trim()) continue;
+    if (cmdSkip.has(m[0])) continue;
+    const start = m.index, end = m.index + m[0].length;
+    if (document.activeElement === ta && ta.selectionStart > start && ta.selectionStart < end) continue;
+    await extractCommand(m[0], attrs, m[2]);
+    return;
+  }
+}
+
+async function extractCommand(raw, attrs, inner) {
+  extractingCmd = true;
+  try {
+    const folder = current.folder;
+    const name = await promptName('Untitled', { title: 'Save <command> as prompt', confirmLabel: 'Save' });
+    if (name === null || !name.trim()) { cmdSkip.add(raw); return; }
+    const r = await api(fPath(folder) + '/prompts', jsonOpts('POST', { name: name.trim(), content: unwrapFence(inner) }));
+    if (r.error) { alert(r.error); cmdSkip.add(raw); return; }
+    const idx = ta.value.indexOf(raw);
+    if (idx >= 0) {
+      const stamped = '<command name="' + r.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"'
+        + attrs + raw.slice(('<command' + attrs).length);
+      ta.setRangeText(stamped, idx, idx + raw.length, 'preserve');
+      prevValue = ta.value;
+      highlight();
+    }
+    if (current) {
+      current.content = ta.value;
+      await api(pPath(current.folder, current.name), jsonOpts('PUT', { content: current.content }));
+      setStatus('');
+    }
+    if (currentFolder === folder) {
+      await refreshPrompts();
+      await select(r.name);
+    }
+  } finally {
+    extractingCmd = false;
+  }
+}
+
+ta.addEventListener('blur', () => setTimeout(checkCommands, 100));
+
 /* ---------- wire up ---------- */
 ta.addEventListener('input', e => {
   maybeFill(e);
@@ -1167,15 +1385,14 @@ ta.addEventListener('input', e => {
   syncScroll();
   scheduleSave();
   updateSug();
+  scheduleCmdCheck();
 });
 
 renderTmenu();
 highlight();
 (async () => {
   await Promise.all([loadBlocks(), loadTags()]);
-  prompts = await api('/prompts');
-  renderList();
-  if (prompts[0]) select(prompts[0].id);
+  await refreshFolders();
 })();
 </script>
 </body>
