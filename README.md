@@ -1,16 +1,43 @@
 # Prompt Forge
 
-Minimal local editor for XML-structured AI prompts. Bun + SQLite, no dependencies.
+Minimal local editor for XML-structured AI prompts. Bun + SQLite, no runtime dependencies.
 
 ## Run
 
 ```sh
-bun run dev        # http://localhost:4177, hot-reloads on server changes
+bun install        # dev-only: TypeScript + Bun types
+bun run dev        # http://localhost:4177, hot-reloads server and client
 bun start          # plain run
 PORT=4000 bun start
+bun test           # unit tests (API handlers + pure editor logic)
+bun run typecheck  # tsc --noEmit
 ```
 
-Prompts are stored in `prompts.db` next to `server.ts`.
+Prompts are stored as plain `.xml` files in `prompts/<folder>/<name>.xml` in the project root;
+blocks and tags live in `prompts.db`.
+
+## Project layout
+
+```
+src/
+  server.ts              entry point: opens the DB, migrates legacy prompts, mounts all routes in Bun.serve
+  db/database.ts         opens SQLite, creates tables, seeds defaults
+  http/                  JSON response / body helpers
+  prompts/               } one folder per domain:
+  blocks/                }   *-handlers.ts  HTTP handlers (request -> Response)
+  tags/                  }   *-queries.ts   SQL + row types, *-validation.ts, *-defaults.ts
+                         }   *-handlers.test.ts, index.ts (route table)
+                         }   prompts/ stores files, not rows: prompt-store.ts is the fs layer
+  client/
+    shared/              theme.css, base.css, api.ts, dom.ts, theme.ts
+    editor/              index.html + editor.css + main.ts; one module per concern
+                         (xml-context, syntax-highlight, suggestions, key-handlers, autosave, ...)
+    settings/            index.html + settings.css + main.ts, blocks-section.ts, tags-section.ts
+```
+
+The HTML pages are imported into `Bun.serve` routes, so Bun bundles their `.ts` and `.css` on the fly —
+there is no build step. Validation patterns (`block-validation.ts`, `tag-validation.ts`) are imported by
+both server and client, so the rules live in one place.
 
 ## Editor
 
@@ -21,17 +48,23 @@ Prompts are stored in `prompts.db` next to `server.ts`.
 - lines auto-wrap at column 100 while typing, the continuation keeps the line's indentation (off inside code contexts)
 - with a selection: `"` `'` `(` `[` `{` `` ` `` `*` `_` wrap it instead of replacing; Tab / Shift+Tab indent / dedent the selected lines
 - Ctrl+B / Ctrl+I / Ctrl+E wrap selection in `**bold**` / `*italic*` / `` `code` ``; ```` ```lang ```` fenced code blocks are highlighted too
+- renaming an opening tag renames its closing tag (and vice versa)
+- the sidebar lists folders; opening one slides in its prompt list, `‹` goes back
 - `+` in the sidebar offers templates (blank, tasks, summarization, general skeleton)
+- a completed `<command>…</command>` element is offered to be saved as its own prompt file in the
+  current folder, then stamped with `name="…"` so it is only extracted once
 - copy icon (top right) copies the whole XML to the clipboard
 - autosaves 500 ms after you stop typing; Ctrl+S saves immediately
 
-## Database
+## Storage
 
-`prompts.db` (SQLite) is created and seeded automatically on first start and is **not** tracked in git
-(see `.gitignore`). To reset to a clean default state:
+Prompt files live in `prompts/<folder>/<name>.xml`; folder and prompt names are the directory and file
+names. `prompts.db` (SQLite) holds blocks and tags. Both are created and seeded automatically on first
+start and are **not** tracked in git (see `.gitignore`). A `prompts` table from an older install is
+migrated into `prompts/default/` on first start. To reset to a clean default state:
 
 ```sh
-bun run db:reset   # deletes prompts.db; it is recreated with default data on next start
+bun run db:reset   # deletes prompts.db and prompts/; both are recreated with default data on next start
 ```
 
 ## Settings
