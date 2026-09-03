@@ -118,7 +118,8 @@ Everything is stored on the user's side; the app has no server.
   the folder. `Use browser storage` detaches the folder again; the files stay on disk.
   Firefox, Safari and mobile browsers lack the folder picker, so they always use browser storage.
 - **Settings** (custom blocks, permanent tags) are one JSON document under the `settings` key in
-  `localStorage`, seeded with defaults on first load.
+  `localStorage`, seeded with defaults on first load. They belong to the browser, not to a prompt folder: opening
+  the same folder on another computer gives you that computer's blocks and tags. There is deliberately no sync.
 - **UI state** (rail width, accent colour) is a second JSON document under the `ui` key; the theme keeps
   its own `theme` key. Both are read by the inline script in `<head>` so the page paints correctly at once.
 
