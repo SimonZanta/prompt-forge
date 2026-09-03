@@ -4,7 +4,7 @@ import { initPromptStorage } from "../storage/active-prompt-store.ts";
 import { bindAutosave } from "./autosave.ts";
 import { loadBlocks } from "./custom-blocks.ts";
 import { bindEditorInput } from "./editor-input.ts";
-import { copyButton, themeToggleButton } from "./elements.ts";
+import { copiedNote, copyButton, themeToggleButton } from "./elements.ts";
 import { bindFolderTree, renderTree } from "./folder-tree.ts";
 import { refreshHighlight } from "./highlight-layer.ts";
 import { bindEditorKeydown } from "./key-handlers.ts";
@@ -20,12 +20,27 @@ import { bindSuggestionDismissal } from "./suggestions.ts";
 import { bindTooltip } from "./tooltip.ts";
 import { bindViewToggle, setView } from "./view-toggle.ts";
 
-/** Copies the whole prompt to the clipboard and flashes the button green. */
+const COPIED_NOTE_MS = 1400;
+let copiedNoteTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Copies the whole prompt to the clipboard, flashes the button green and shows "Copied!" beside it for a moment. */
 function bindCopyButton(): void {
   copyButton.onclick = async () => {
-    await navigator.clipboard.writeText(editorState.currentPrompt?.content ?? "");
-    copyButton.classList.add("ok");
-    setTimeout(() => copyButton.classList.remove("ok"), 1200);
+    let copied = true;
+    try {
+      await navigator.clipboard.writeText(editorState.currentPrompt?.content ?? "");
+    } catch {
+      copied = false;
+    }
+    copiedNote.textContent = copied ? "Copied!" : "Copy blocked by the browser";
+    copiedNote.classList.toggle("bad", !copied);
+    copiedNote.hidden = false;
+    copyButton.classList.toggle("ok", copied);
+    if (copiedNoteTimer) clearTimeout(copiedNoteTimer);
+    copiedNoteTimer = setTimeout(() => {
+      copiedNote.hidden = true;
+      copyButton.classList.remove("ok");
+    }, COPIED_NOTE_MS);
   };
 }
 

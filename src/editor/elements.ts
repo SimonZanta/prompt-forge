@@ -20,6 +20,7 @@ export const titleInput = queryElement<HTMLInputElement>("#title");
 export const folderChip = queryElement<HTMLSpanElement>("#folder-chip");
 export const saveStatusIndicator = queryElement<HTMLSpanElement>("#status");
 export const copyButton = queryElement<HTMLButtonElement>("#copy");
+export const copiedNote = queryElement<HTMLSpanElement>("#copied");
 export const railGrip = queryElement<HTMLDivElement>("#rail-grip");
 export const searchInput = queryElement<HTMLInputElement>("#search");
 export const newFolderButton = queryElement<HTMLButtonElement>("#new-folder");

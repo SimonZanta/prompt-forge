@@ -115,6 +115,9 @@ body.resizing { user-select: none; cursor: col-resize; }
 .iconbtn:hover { background: var(--surface); color: var(--text); }
 .iconbtn svg { width: 15px; height: 15px; }
 #copy.ok { color: var(--ok); }
+.copied { font-size: 11px; color: var(--ok); white-space: nowrap; animation: copied-in .15s ease-out; }
+.copied.bad { color: var(--danger); }
+@keyframes copied-in { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: none; } }
 
 /* ---------- blocks ---------- */
 .canvas { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 14px 16px 40px; }
