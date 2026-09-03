@@ -1,6 +1,7 @@
 import { loadSettings } from "../storage/settings-store.ts";
 import { isValidTagName } from "../storage/tag-validation.ts";
 import { cloneNodes, createNode, parseFragmentXml, type PromptNode } from "./node-tree.ts";
+import { tagColorClass } from "./syntax-highlight.ts";
 
 /**
  * The single insertion gesture: a floating, filterable list of custom blocks and tags. Settings are
@@ -14,6 +15,8 @@ interface MenuItem {
   hint: string;
   /** Nodes to insert (insert mode) or the tag to link (link mode); null for an unusable item. */
   pick(): PromptNode[] | string | null;
+  /** Set for tag items: coloured like the tag in the editor. */
+  tag?: string;
 }
 
 export type InsertMenuRequest =
@@ -99,6 +102,7 @@ function tagItems(filter: string, tagsInUse: Iterable<string>, mode: "insert" | 
       group: mode === "link" ? "Link to" : "Tags",
       label: name,
       hint: "",
+      tag: name,
       pick: () => (mode === "link" ? name : [createNode(name)]),
     }));
 }
@@ -113,6 +117,7 @@ function renderItems(): void {
       group: mode === "insert" ? "Tags" : "Link to",
       label: filter,
       hint: mode === "insert" ? "create tag" : "link",
+      tag: filter,
       pick: () => (mode === "link" ? filter : [createNode(filter)]),
     });
   }
@@ -132,7 +137,7 @@ function renderItems(): void {
     button.className = "mitem" + (index === selectedIndex ? " sel" : "");
     button.dataset.index = String(index);
     const label = document.createElement("span");
-    label.className = "mt";
+    label.className = "mt" + (item.tag ? " " + tagColorClass(item.tag) : "");
     label.textContent = item.label;
     const hint = document.createElement("span");
     hint.className = "md" + (item.hint === "invalid XML" ? " bad" : "");

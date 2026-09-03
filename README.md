@@ -51,7 +51,7 @@ src/
 Two views of the same prompt, switched with the Blocks / XML toggle in the header.
 
 **Blocks** (default) — every XML element is a block: a monospace tag chip, editable text, nested children
-behind a hairline guide. Root-level chips take the accent colour.
+behind a hairline guide. A chip has the same colour as that tag in the XML view; root-level chips add a tint of it.
 - `/` (or the insert row at the bottom, or `+` on a block) opens the insert menu: custom blocks and tags from
   settings plus tags already used in the prompt; type to filter, arrows + Enter insert, Escape closes, an
   unmatched name creates that tag. Inserted blocks are copies, so inserting a block twice gives independent trees.
@@ -60,6 +60,7 @@ behind a hairline guide. Root-level chips take the accent colour.
 - hover or focus a block for its controls: drag grip (reorders among siblings), add child, delete;
   Ctrl+Z outside a text field restores the last deleted block to where it was
 - text edits never rebuild the tree, so the caret stays put; structural changes do
+- Escape in a text field steps out to the block's row, so `/` and Ctrl+Z work again without the mouse
 
 **XML** — the raw file, with everything the old editor had:
 - `<` opens tag suggestions (defaults + every tag you've used in any prompt); Enter/Tab accepts
