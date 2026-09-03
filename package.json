@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot run src/dev-server.ts",
-    "build": "bun build ./src/index.html ./src/settings.html --outdir dist --minify",
+    "build": "bun build ./src/index.html --outdir dist --minify",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit"
   },

@@ -3,6 +3,8 @@ import type { Block } from "../storage/settings-store.ts";
 import type { PromptTree } from "./node-tree.ts";
 
 export type EditorView = "blocks" | "xml";
+/** What the main pane shows: the open prompt, or the settings page. */
+export type Page = "editor" | "settings";
 
 /** The prompt file open in the editor. `content` is the XML string that is saved; `tree` is its block form. */
 export interface OpenPrompt {
@@ -32,6 +34,7 @@ export const editorState = {
   searchQuery: "",
   currentPrompt: null as OpenPrompt | null,
   view: "blocks" as EditorView,
+  page: "editor" as Page,
   /** Custom blocks from settings (`<command` expands to content in the XML view). */
   blocks: [] as Block[],
   /** Tag names always offered by autocomplete. */

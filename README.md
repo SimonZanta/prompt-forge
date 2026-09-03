@@ -10,7 +10,7 @@ folder on your disk that you pick.
 bun install        # dev-only: TypeScript + Bun types
 bun run dev        # http://localhost:4177, dev server that bundles TS / CSS on the fly with hot reload
 PORT=4000 bun run dev
-bun run build      # static site in dist/ (index.html, settings.html + hashed js/css) — host it anywhere
+bun run build      # static site in dist/ (index.html + hashed js/css) — host it anywhere
 bun test           # unit tests (storage validation + pure editor logic)
 bun run typecheck  # tsc --noEmit
 ```
@@ -22,9 +22,8 @@ static host). The File System Access API needs HTTPS or localhost, which every s
 
 ```
 src/
-  index.html             editor page          } the two build entry points
-  settings.html          settings page        }
-  dev-server.ts          Bun.serve for development only (serves the two pages, bundles on the fly)
+  index.html             the single page (editor + settings) and build entry point
+  dev-server.ts          Bun.serve for development only (serves the page, bundles on the fly)
   storage/
     prompt-store.ts          PromptStore interface + name validation / duplicate checks shared by both backends
     browser-prompt-store.ts  prompts in IndexedDB (default, works in every browser)
@@ -42,11 +41,10 @@ src/
                          node-tree (model + XML), block-editor, insert-menu, view-toggle, prompt-canvas,
                          folder-tree + library + folder-actions + prompt-actions (rail), tooltip, rail-resize,
                          XML view: xml-context, syntax-highlight, suggestions, key-handlers, autosave, ...
-  settings/              settings.css + main.ts, blocks-section.ts, tags-section.ts
+                         settings-pane (custom blocks, tags, accent — shown in place of the editor)
 ```
 
-`bun build` bundles the `.ts` / `.css` referenced by the two HTML pages into `dist/`; the dev server does the
-same in memory.
+`bun build` bundles the `.ts` / `.css` referenced by `index.html` into `dist/`; the dev server does the same in memory.
 
 ## Editor
 
@@ -89,6 +87,17 @@ beneath them; the open prompt is highlighted and its folder path appears as a ch
 - the handle on the rail's inner edge resizes it (150–420 px, double-click or Home resets, arrow keys nudge);
   the width is remembered
 - hovering or focusing a row for a moment shows its full name and the folder path it sits in
+
+## Settings
+
+The gear in the rail foot opens settings in place of the editor (the header swaps to a back arrow).
+- **Custom blocks** — each definition has a name (the command shown in the `/` menu) and a body edited either as
+  blocks, with the same editor as the canvas (nesting, `/` insertion, drag to reorder), or as XML. A definition
+  may hold several top-level elements. The footer shows what the block inserts; XML that does not parse is
+  marked and the last valid definition is kept until it does.
+- **Tags** — the permanent tags the insert menu always offers; add with Enter, remove with the ×.
+- **Accent** — six presets or any six-digit hex; the two tints (chip fill, readable text colour) are derived per
+  theme, so any colour stays legible in dark and light. Reset returns to Cobalt.
 
 ## Storage
 

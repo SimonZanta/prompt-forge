@@ -13,6 +13,7 @@ import { loadPermanentTags } from "./permanent-tags.ts";
 import { bindPromptCanvas } from "./prompt-canvas.ts";
 import { openInitialPrompt } from "./prompt-actions.ts";
 import { bindRailResize } from "./rail-resize.ts";
+import { bindSettingsPane } from "./settings-pane.ts";
 import { editorState } from "./state.ts";
 import { bindStorageBar } from "./storage-bar.ts";
 import { bindSuggestionDismissal } from "./suggestions.ts";
@@ -28,12 +29,9 @@ function bindCopyButton(): void {
   };
 }
 
-/** Blocks and tags are edited on the settings page (another tab); reload them when they change or the user comes back. */
+/** Settings saved in another tab of the app: reload the XML view's autocomplete data. */
 function bindSharedDataRefresh(): void {
-  const refresh = () => { loadBlocks(); loadPermanentTags(); };
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
-  window.addEventListener("focus", refresh);
-  window.addEventListener("storage", refresh);
+  window.addEventListener("storage", () => { loadBlocks(); loadPermanentTags(); });
 }
 
 async function startEditor(): Promise<void> {
@@ -50,6 +48,7 @@ async function startEditor(): Promise<void> {
   bindSharedDataRefresh();
   bindPromptCanvas();
   bindViewToggle();
+  bindSettingsPane();
 
   refreshHighlight();
   setView("blocks");
