@@ -122,7 +122,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .canvas.no-prompt .addrow { display: none; }
 .block { border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; margin-bottom: 7px; background: var(--raised); min-width: 0; }
 .block.nested { border: 0; background: none; padding: 0; margin-bottom: 6px; }
-.block.dragging { opacity: .5; }
+/* while dragging: the block's old place is greyed out, the block it will land before is lit up whole */
+.block.dragging { opacity: .35; filter: grayscale(1); }
 .bhead { display: flex; align-items: center; gap: 7px; min-height: 22px; min-width: 0; }
 .twist {
   width: 16px; height: 16px; display: grid; place-items: center; flex: none;
@@ -153,7 +154,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .text:focus { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border-strong); }
 .text:empty::before { content: attr(data-ph); color: var(--text-3); }
 .kids { margin: 6px 0 0 23px; padding-left: 12px; border-left: 1px solid var(--border); min-width: 0; }
-.dropping { box-shadow: 0 -2px 0 var(--accent); }
+.block.dropping { background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); border-radius: 8px; }
+.block.nested.dropping { padding: 3px 5px; margin: -3px -5px 3px; }
 .addrow {
   display: flex; align-items: center; gap: 7px; padding: 5px 4px;
   background: none; border: 0; cursor: pointer;
