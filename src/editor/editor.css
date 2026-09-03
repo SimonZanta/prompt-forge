@@ -122,6 +122,36 @@ body.resizing { user-select: none; cursor: col-resize; }
 .canvas.no-prompt .addrow { display: none; }
 .block { border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; margin-bottom: 7px; background: var(--raised); min-width: 0; }
 .block.nested { border: 0; background: none; padding: 0; margin-bottom: 6px; }
+.bhead { display: flex; align-items: center; gap: 7px; min-height: 22px; min-width: 0; }
+.twist {
+  width: 16px; height: 16px; display: grid; place-items: center; flex: none;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--text-3);
+}
+.twist svg { width: 12px; height: 12px; stroke-width: 2; transition: transform .12s; }
+.twist[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.twist.leaf { visibility: hidden; }
+.tag {
+  font-family: var(--font-mono); font-size: 10.5px; border-radius: 4px; padding: 1px 6px;
+  background: var(--surface); color: var(--text-2); white-space: nowrap; flex: none;
+}
+/* chips carry a .tg-N class, so their text colour is the tag's XML colour (rules below); roots add a tint of it */
+.tag.root { background: color-mix(in srgb, currentColor 18%, transparent); }
+.meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); white-space: nowrap; flex: none; }
+.peek { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.tools { margin-left: auto; display: flex; gap: 2px; opacity: 0; flex: none; }
+.block:hover > .bhead > .tools, .bhead:focus-within > .tools { opacity: 1; }
+.tools .iconbtn { width: 22px; height: 22px; }
+.tools .iconbtn svg { width: 13px; height: 13px; }
+.grip { cursor: grab; }
+.text {
+  font-size: 12.5px; line-height: 1.65; margin: 4px 0 0 23px; padding: 2px 4px;
+  border-radius: var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+  outline: none; min-height: 20px; min-width: 0;
+}
+.text:hover { background: var(--surface); }
+.text:focus { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.text:empty::before { content: attr(data-ph); color: var(--text-3); }
+.kids { margin: 6px 0 0 23px; padding-left: 12px; border-left: 1px solid var(--border); min-width: 0; }
 /* while dragging: the dragged block (dashed ring) and the block it will land before (solid ring) are lit up
    with the accent; every other block on the same level of the path is greyed out, once, without compounding */
 .block.dragging, .block.dropping { background: var(--accent-soft); border-radius: 8px; }
