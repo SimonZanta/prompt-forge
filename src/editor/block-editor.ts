@@ -279,8 +279,11 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
     // the ghost under the pointer is the whole block, not just the grip
     const rect = block.getBoundingClientRect();
     event.dataTransfer!.setDragImage(block, event.clientX - rect.left, event.clientY - rect.top);
-    // the class is added after this frame, or the greyed-out look would be captured into the ghost
-    requestAnimationFrame(() => block.classList.add("dragging"));
+    // classes go on after this frame so the ghost is captured in the block's resting look
+    requestAnimationFrame(() => {
+      block.classList.add("dragging");
+      container.classList.add("drag-active");
+    });
   });
   container.addEventListener("dragover", (event) => {
     const over = siblingBlockAt(event.target as HTMLElement);
@@ -295,8 +298,7 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
   container.addEventListener("drop", (event) => {
     const over = siblingBlockAt(event.target as HTMLElement);
     const dragged = draggedId && locate(draggedId);
-    clearDropMarkers();
-    draggedId = null;
+    endDrag();
     if (!over || !dragged) return;
     event.preventDefault();
     const [node] = dragged.siblings.splice(dragged.index, 1);
@@ -304,11 +306,13 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
     dragged.siblings.splice(targetIndex, 0, node);
     structureChanged(node.id, "toggle");
   });
-  container.addEventListener("dragend", () => {
+  const endDrag = () => {
     draggedId = null;
     clearDropMarkers();
+    container.classList.remove("drag-active");
     container.querySelectorAll(".dragging").forEach((el) => el.classList.remove("dragging"));
-  });
+  };
+  container.addEventListener("dragend", endDrag);
 
   return { element: container, render, insert, focusText, undoDelete };
 }
