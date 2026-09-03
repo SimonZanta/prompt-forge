@@ -1,9 +1,9 @@
-prompts.db
-prompts.db-journal
-/prompts/
-prompts.db-wal
-prompts.db-shm
 node_modules/
+dist/
+
+# local data from the old server-based version (prompts are now stored in the browser or a folder you pick)
+prompts.db*
+/prompts/
 
 # IDE / tooling / environment files
 .idea/
