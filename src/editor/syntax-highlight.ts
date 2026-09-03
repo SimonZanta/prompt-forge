@@ -11,11 +11,18 @@ export function escapeHtml(text: string): string {
 const HIGHLIGHT_TOKEN_PATTERN =
   /(^[ \t]*```[^\n]*(?:\n(?:[\s\S]*?\n[ \t]*```[ \t]*$|[\s\S]*$))?)|(&lt;\/?[A-Za-z_][\w.:-]*[\s\S]*?&gt;)|(\[\[[A-Za-z_][\w.:-]*\]\])|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(`[^`\n]+`)|(^#{1,6} [^\n]*)/gm;
 
-/** Stable colour class for a tag name (`tg tg-0` … `tg tg-9`), so the same tag always gets the same colour. */
-export function tagColorClass(tagName: string): string {
+export const TAG_COLOR_COUNT = 10;
+
+/** Stable colour index (0 … 9) for a tag name, so the same tag always gets the same colour everywhere. */
+export function tagColorIndex(tagName: string): number {
   let hash = 0;
   for (let i = 0; i < tagName.length; i++) hash = (hash * 101 + tagName.charCodeAt(i)) >>> 0;
-  return "tg tg-" + (hash % 10);
+  return hash % TAG_COLOR_COUNT;
+}
+
+/** Colour class for a tag name (`tg tg-0` … `tg tg-9`). */
+export function tagColorClass(tagName: string): string {
+  return "tg tg-" + tagColorIndex(tagName);
 }
 
 function highlightFence(fence: string): string {
@@ -42,7 +49,7 @@ export function highlightSource(source: string): string {
   return escapeHtml(source).replace(HIGHLIGHT_TOKEN_PATTERN, (_, fence, tag, link, bold, italic, code, heading) => {
     if (fence) return highlightFence(fence);
     if (tag) return highlightTag(tag);
-    if (link) return '<span class="lk">' + link + "</span>";
+    if (link) return '<span class="lk ' + tagColorClass(link.slice(2, -2)) + '">' + link + "</span>";
     if (bold) return '<span class="md-b">' + bold + "</span>";
     if (italic) return '<span class="md-i">' + italic + "</span>";
     if (code) return '<span class="md-c">' + code + "</span>";

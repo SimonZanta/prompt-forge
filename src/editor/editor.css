@@ -206,7 +206,18 @@ body.resizing { user-select: none; cursor: col-resize; }
 .tg-9 { color: var(--tag-9); }
 .pu { color: var(--punct); }
 .at { color: var(--attr); }
-.lk { color: var(--accent-text); background: var(--accent-soft); border-radius: 3px; }
+/* [[tag]] links: the tag's own colour, in the XML view (.lk spans) and inside block text (custom highlights) */
+.lk { background: color-mix(in srgb, currentColor 16%, transparent); border-radius: 3px; }
+::highlight(link-0) { color: var(--tag-0); background-color: color-mix(in srgb, var(--tag-0) 16%, transparent); }
+::highlight(link-1) { color: var(--tag-1); background-color: color-mix(in srgb, var(--tag-1) 16%, transparent); }
+::highlight(link-2) { color: var(--tag-2); background-color: color-mix(in srgb, var(--tag-2) 16%, transparent); }
+::highlight(link-3) { color: var(--tag-3); background-color: color-mix(in srgb, var(--tag-3) 16%, transparent); }
+::highlight(link-4) { color: var(--tag-4); background-color: color-mix(in srgb, var(--tag-4) 16%, transparent); }
+::highlight(link-5) { color: var(--tag-5); background-color: color-mix(in srgb, var(--tag-5) 16%, transparent); }
+::highlight(link-6) { color: var(--tag-6); background-color: color-mix(in srgb, var(--tag-6) 16%, transparent); }
+::highlight(link-7) { color: var(--tag-7); background-color: color-mix(in srgb, var(--tag-7) 16%, transparent); }
+::highlight(link-8) { color: var(--tag-8); background-color: color-mix(in srgb, var(--tag-8) 16%, transparent); }
+::highlight(link-9) { color: var(--tag-9); background-color: color-mix(in srgb, var(--tag-9) 16%, transparent); }
 .md-b { color: var(--md-b); font-weight: 700; }
 .md-i { color: var(--md-i); font-style: italic; }
 .md-c { color: var(--md-c); background: var(--md-c-bg); border-radius: 3px; }
