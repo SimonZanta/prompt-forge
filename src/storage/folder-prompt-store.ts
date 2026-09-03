@@ -1,6 +1,9 @@
 import {
   createPromptStore,
+  folderNameOf,
   isValidName,
+  parentPathOf,
+  pathSegments,
   type Folder,
   type PromptListItem,
   type PromptStore,
@@ -8,9 +11,10 @@ import {
 } from "./prompt-store.ts";
 
 /**
- * Prompts as real files: `<picked folder>/<folder>/<name>.xml`, via the File System Access API.
- * Sub-directories are folders, `.xml` files are prompts; anything else in the tree is ignored.
- * Renames are copy + delete because `FileSystemHandle.move()` is not available for user-picked folders.
+ * Prompts as real files: `<picked folder>/<path…>/<name>.xml`, via the File System Access API.
+ * Directories are folders (nested to any depth), `.xml` files are prompts; anything else is ignored
+ * but preserved. Renames are copy + delete because `FileSystemHandle.move()` is not available for
+ * user-picked folders.
  */
 
 const PROMPT_EXTENSION = ".xml";
@@ -38,23 +42,49 @@ async function listXmlFileNames(directory: FileSystemDirectoryHandle): Promise<s
   return names;
 }
 
+/** Copies every entry (files of any kind, subdirectories) from `source` into `target`. */
+async function copyDirectory(source: FileSystemDirectoryHandle, target: FileSystemDirectoryHandle): Promise<void> {
+  for await (const [name, handle] of source.entries()) {
+    if (handle.kind === "directory") {
+      await copyDirectory(handle as FileSystemDirectoryHandle, await target.getDirectoryHandle(name, { create: true }));
+    } else {
+      const file = await (handle as FileSystemFileHandle).getFile();
+      const writable = await (await target.getFileHandle(name, { create: true })).createWritable();
+      await writable.write(await file.arrayBuffer());
+      await writable.close();
+    }
+  }
+}
+
 export function createFolderPromptStore(root: FileSystemDirectoryHandle): PromptStore {
-  const folderHandle = (folder: string, create = false) => root.getDirectoryHandle(folder, { create });
+  /** Walks `path` segment by segment from the picked root. */
+  async function directoryFor(path: string | null, create = false): Promise<FileSystemDirectoryHandle> {
+    let directory = root;
+    if (path === null) return directory;
+    for (const segment of pathSegments(path)) directory = await directory.getDirectoryHandle(segment, { create });
+    return directory;
+  }
+
+  async function walkFolders(directory: FileSystemDirectoryHandle, parent: string | null, into: Folder[]): Promise<void> {
+    for await (const [name, handle] of directory.entries()) {
+      if (handle.kind !== "directory" || !isValidName(name)) continue;
+      const child = handle as FileSystemDirectoryHandle;
+      const path = parent ? parent + "/" + name : name;
+      into.push({ path, name, prompt_count: (await listXmlFileNames(child)).length });
+      await walkFolders(child, path, into);
+    }
+  }
 
   const backend: PromptStoreBackend = {
     async listFolders(): Promise<Folder[]> {
       const folders: Folder[] = [];
-      for await (const [name, handle] of root.entries()) {
-        if (handle.kind !== "directory" || !isValidName(name)) continue;
-        const directory = handle as FileSystemDirectoryHandle;
-        folders.push({ name, prompt_count: (await listXmlFileNames(directory)).length });
-      }
-      return folders.sort((a, b) => a.name.localeCompare(b.name));
+      await walkFolders(root, null, folders);
+      return folders.sort((a, b) => a.path.localeCompare(b.path));
     },
 
-    async folderExists(folder) {
+    async folderExists(path) {
       try {
-        await folderHandle(folder);
+        await directoryFor(path);
         return true;
       } catch (error) {
         if (isNotFound(error)) return false;
@@ -62,23 +92,34 @@ export function createFolderPromptStore(root: FileSystemDirectoryHandle): Prompt
       }
     },
 
-    async createFolder(folder) {
-      await folderHandle(folder, true);
+    async createFolder(path) {
+      await directoryFor(path, true);
     },
 
-    async renameFolder(folder, newName) {
-      const source = await folderHandle(folder);
-      const target = await folderHandle(newName, true);
-      for (const fileName of await listXmlFileNames(source)) {
-        await writeText(target, fileName, await readText(source, fileName));
+    async renameFolder(path, newPath) {
+      const source = await directoryFor(path);
+      const parent = await directoryFor(parentPathOf(path));
+      const target = await parent.getDirectoryHandle(folderNameOf(newPath), { create: true });
+      await copyDirectory(source, target);
+      await parent.removeEntry(folderNameOf(path), { recursive: true });
+    },
+
+    async deleteFolder(path) {
+      const parent = await directoryFor(parentPathOf(path));
+      // Not recursive on purpose: the store already checked for prompts and subfolders, so this only
+      // fails when the directory holds other files the user should look at first.
+      try {
+        await parent.removeEntry(folderNameOf(path));
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "InvalidModificationError") {
+          throw new Error("folder contains other files; remove them first");
+        }
+        throw error;
       }
-      await root.removeEntry(folder, { recursive: true });
     },
-
-    deleteFolder: (folder) => root.removeEntry(folder, { recursive: true }),
 
     async listPrompts(folder): Promise<PromptListItem[]> {
-      const directory = await folderHandle(folder);
+      const directory = await directoryFor(folder);
       const items: PromptListItem[] = [];
       for (const fileName of await listXmlFileNames(directory)) {
         const file = await (await directory.getFileHandle(fileName)).getFile();
@@ -89,7 +130,7 @@ export function createFolderPromptStore(root: FileSystemDirectoryHandle): Prompt
 
     async promptExists(folder, name) {
       try {
-        await (await folderHandle(folder)).getFileHandle(name + PROMPT_EXTENSION);
+        await (await directoryFor(folder)).getFileHandle(name + PROMPT_EXTENSION);
         return true;
       } catch (error) {
         if (isNotFound(error)) return false;
@@ -98,21 +139,21 @@ export function createFolderPromptStore(root: FileSystemDirectoryHandle): Prompt
     },
 
     async readPrompt(folder, name) {
-      return readText(await folderHandle(folder), name + PROMPT_EXTENSION);
+      return readText(await directoryFor(folder), name + PROMPT_EXTENSION);
     },
 
     async writePrompt(folder, name, content) {
-      await writeText(await folderHandle(folder), name + PROMPT_EXTENSION, content);
+      await writeText(await directoryFor(folder), name + PROMPT_EXTENSION, content);
     },
 
     async renamePrompt(folder, name, newName) {
-      const directory = await folderHandle(folder);
+      const directory = await directoryFor(folder);
       await writeText(directory, newName + PROMPT_EXTENSION, await readText(directory, name + PROMPT_EXTENSION));
       await directory.removeEntry(name + PROMPT_EXTENSION);
     },
 
     async deletePrompt(folder, name) {
-      await (await folderHandle(folder)).removeEntry(name + PROMPT_EXTENSION);
+      await (await directoryFor(folder)).removeEntry(name + PROMPT_EXTENSION);
     },
   };
 

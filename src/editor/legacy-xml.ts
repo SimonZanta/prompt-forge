@@ -23,3 +23,8 @@ export function migrateLegacyXml(text: string): string {
     .replace(/<(?![A-Za-z_/!?])/g, "&lt;")
     .replace(/&(?![a-zA-Z]+;|#\d+;)/g, "&amp;");
 }
+
+/** True when the rewrite would change `text` at all (cheap pre-check before parsing twice). */
+export function legacyRewriteNeeded(text: string): boolean {
+  return migrateLegacyXml(text) !== text;
+}

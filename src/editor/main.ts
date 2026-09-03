@@ -5,16 +5,18 @@ import { bindAutosave } from "./autosave.ts";
 import { loadBlocks } from "./custom-blocks.ts";
 import { bindEditorInput } from "./editor-input.ts";
 import { copyButton, themeToggleButton } from "./elements.ts";
-import { bindFolderNavigation, refreshFolders } from "./folder-list.ts";
+import { bindFolderTree, renderTree } from "./folder-tree.ts";
 import { refreshHighlight } from "./highlight-layer.ts";
 import { bindEditorKeydown } from "./key-handlers.ts";
-import { bindNameDialog } from "./modal.ts";
+import { refreshLibrary } from "./library.ts";
 import { loadPermanentTags } from "./permanent-tags.ts";
 import { bindPromptCanvas } from "./prompt-canvas.ts";
-import { bindNewPromptButton } from "./prompt-list.ts";
+import { openInitialPrompt } from "./prompt-actions.ts";
+import { bindRailResize } from "./rail-resize.ts";
 import { editorState } from "./state.ts";
 import { bindStorageBar } from "./storage-bar.ts";
 import { bindSuggestionDismissal } from "./suggestions.ts";
+import { bindTooltip } from "./tooltip.ts";
 import { bindViewToggle, setView } from "./view-toggle.ts";
 
 /** Copies the whole prompt to the clipboard and flashes the button green. */
@@ -38,9 +40,9 @@ async function startEditor(): Promise<void> {
   applyStoredAccent();
   bindThemeToggle(themeToggleButton);
   bindCopyButton();
-  bindNameDialog();
-  bindFolderNavigation();
-  bindNewPromptButton();
+  bindFolderTree();
+  bindTooltip();
+  bindRailResize();
   bindAutosave();
   bindEditorKeydown();
   bindEditorInput();
@@ -55,7 +57,9 @@ async function startEditor(): Promise<void> {
   loadPermanentTags();
   await initPromptStorage();
   bindStorageBar();
-  await refreshFolders();
+  await refreshLibrary();
+  renderTree();
+  await openInitialPrompt();
 }
 
 startEditor();

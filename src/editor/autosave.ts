@@ -1,6 +1,6 @@
 import { promptStore } from "../storage/active-prompt-store.ts";
 import { saveStatusIndicator, titleInput } from "./elements.ts";
-import { refreshPromptList } from "./prompt-list.ts";
+import { renamePrompt } from "./prompt-actions.ts";
 import { editorState } from "./state.ts";
 
 const AUTOSAVE_DELAY_MS = 500;
@@ -64,18 +64,15 @@ async function renameCurrentPromptFromTitle(): Promise<void> {
     titleInput.value = prompt.name;
     return;
   }
-  try {
-    const renamed = await promptStore().renamePrompt(prompt.folder, prompt.name, name);
-    prompt.name = renamed.name;
-    titleInput.value = renamed.name;
-    if (prompt.folder === editorState.currentFolder) await refreshPromptList();
-  } catch (error) {
-    alert(error instanceof Error ? error.message : String(error));
+  const error = await renamePrompt(prompt.folder, prompt.name, name);
+  if (error) {
+    alert(error);
     titleInput.value = prompt.name;
   }
 }
 
 export function bindAutosave(): void {
   titleInput.addEventListener("change", renameCurrentPromptFromTitle);
+  titleInput.addEventListener("keydown", (event) => { if (event.key === "Enter") titleInput.blur(); });
   window.addEventListener("beforeunload", () => { if (pendingSaveTimer) saveCurrentPrompt(); });
 }

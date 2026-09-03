@@ -1,47 +1,88 @@
 import { describe, expect, test } from "bun:test";
-import { createPromptStore, isValidName, type PromptStoreBackend } from "./prompt-store.ts";
+import {
+  childPath, createPromptStore, folderNameOf, isValidName, isValidPath, isWithin, parentPathOf, type PromptStoreBackend,
+} from "./prompt-store.ts";
 
 /** In-memory backend so the validation layer can be tested without IndexedDB or a real folder. */
 function createMemoryBackend(): PromptStoreBackend {
   const folders = new Map<string, Map<string, string>>();
-  const folder = (name: string) => folders.get(name)!;
+  const folder = (path: string) => folders.get(path)!;
   return {
-    listFolders: async () => [...folders].map(([name, prompts]) => ({ name, prompt_count: prompts.size })),
-    folderExists: async (name) => folders.has(name),
-    createFolder: async (name) => { folders.set(name, new Map()); },
-    renameFolder: async (name, newName) => { folders.set(newName, folder(name)); folders.delete(name); },
-    deleteFolder: async (name) => { folders.delete(name); },
-    listPrompts: async (name) => [...folder(name).keys()].map((prompt) => ({ name: prompt, updated_at: "" })),
-    promptExists: async (name, prompt) => folder(name).has(prompt),
-    readPrompt: async (name, prompt) => folder(name).get(prompt)!,
-    writePrompt: async (name, prompt, content) => { folder(name).set(prompt, content); },
-    renamePrompt: async (name, prompt, newPrompt) => { folder(name).set(newPrompt, folder(name).get(prompt)!); folder(name).delete(prompt); },
-    deletePrompt: async (name, prompt) => { folder(name).delete(prompt); },
+    listFolders: async () => [...folders].map(([path, prompts]) => ({ path, name: folderNameOf(path), prompt_count: prompts.size })),
+    folderExists: async (path) => folders.has(path),
+    createFolder: async (path) => { folders.set(path, new Map()); },
+    renameFolder: async (path, newPath) => {
+      for (const [key, prompts] of [...folders]) {
+        if (!isWithin(key, path)) continue;
+        folders.delete(key);
+        folders.set(newPath + key.slice(path.length), prompts);
+      }
+    },
+    deleteFolder: async (path) => { folders.delete(path); },
+    listPrompts: async (path) => [...folder(path).keys()].map((prompt) => ({ name: prompt, updated_at: "" })),
+    promptExists: async (path, prompt) => folder(path).has(prompt),
+    readPrompt: async (path, prompt) => folder(path).get(prompt)!,
+    writePrompt: async (path, prompt, content) => { folder(path).set(prompt, content); },
+    renamePrompt: async (path, prompt, newPrompt) => { folder(path).set(newPrompt, folder(path).get(prompt)!); folder(path).delete(prompt); },
+    deletePrompt: async (path, prompt) => { folder(path).delete(prompt); },
   };
 }
 
-describe("isValidName", () => {
-  test("accepts ordinary names", () => {
+describe("names and paths", () => {
+  test("accepts ordinary names, including non-ASCII", () => {
     expect(isValidName("default")).toBe(true);
     expect(isValidName("sql exporty")).toBe(true);
+    expect(isValidName("vývoj aplikace")).toBe(true);
   });
   test("rejects path-unsafe names", () => {
     for (const bad of ["", "a/b", "a\\b", ".hidden", "trailing.", "trailing ", " lead", "a:b", "x".repeat(101)]) {
       expect(isValidName(bad)).toBe(false);
     }
   });
+  test("path helpers", () => {
+    expect(isValidPath("vývoj aplikace/archiv")).toBe(true);
+    expect(isValidPath("a//b")).toBe(false);
+    expect(isValidPath("")).toBe(false);
+    expect(parentPathOf("a/b/c")).toBe("a/b");
+    expect(parentPathOf("a")).toBeNull();
+    expect(folderNameOf("a/b/c")).toBe("c");
+    expect(childPath(null, "a")).toBe("a");
+    expect(childPath("a/b", "c")).toBe("a/b/c");
+    expect(isWithin("a/b", "a")).toBe(true);
+    expect(isWithin("ab", "a")).toBe(false);
+    expect(isWithin("a", "a")).toBe(true);
+  });
 });
 
 describe("createPromptStore", () => {
   test("creates, lists, renames and deletes folders", async () => {
     const store = createPromptStore(createMemoryBackend());
-    expect(await store.createFolder("work")).toEqual({ name: "work", prompt_count: 0 });
+    expect(await store.createFolder("work")).toEqual({ path: "work", name: "work", prompt_count: 0 });
     expect(store.createFolder("work")).rejects.toThrow("duplicate folder");
-    expect(store.createFolder("bad/name")).rejects.toThrow("invalid folder name");
-    await store.renameFolder("work", "play");
-    expect((await store.listFolders()).map((folder) => folder.name)).toEqual(["play"]);
+    expect(store.createFolder("bad/name")).rejects.toThrow("folder not found"); // parent "bad" does not exist
+    expect(store.createFolder("bad:name")).rejects.toThrow("invalid folder name");
+    expect(await store.renameFolder("work", "play")).toEqual({ path: "play", name: "play", prompt_count: 0 });
+    expect((await store.listFolders()).map((folder) => folder.path)).toEqual(["play"]);
     await store.deleteFolder("play");
     expect(store.deleteFolder("play")).rejects.toThrow("folder not found");
+  });
+
+  test("nested folders: rename moves the subtree, delete needs an empty folder", async () => {
+    const store = createPromptStore(createMemoryBackend());
+    await store.createFolder("vývoj aplikace");
+    await store.createFolder("vývoj aplikace/archiv");
+    await store.createPrompt("vývoj aplikace/archiv", "old", "<prompt/>");
+    expect(store.deleteFolder("vývoj aplikace")).rejects.toThrow("folder is not empty");
+    expect(store.deleteFolder("vývoj aplikace/archiv")).rejects.toThrow("folder is not empty");
+
+    expect(await store.renameFolder("vývoj aplikace", "dev")).toEqual({ path: "dev", name: "dev", prompt_count: 0 });
+    expect((await store.listFolders()).map((folder) => folder.path).sort()).toEqual(["dev", "dev/archiv"]);
+    expect(await store.readPrompt("dev/archiv", "old")).toEqual({ name: "old", content: "<prompt/>" });
+
+    await store.deletePrompt("dev/archiv", "old");
+    await store.deleteFolder("dev/archiv");
+    await store.deleteFolder("dev");
+    expect(await store.listFolders()).toEqual([]);
   });
 
   test("renaming a folder to its own name is a no-op", async () => {
