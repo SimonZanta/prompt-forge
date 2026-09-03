@@ -1,5 +1,6 @@
 import { iconButton, svgIcon } from "../shared/icons.ts";
 import { countWords, findNode, type NodeLocation, type PromptNode } from "./node-tree.ts";
+import { tagColorClass } from "./syntax-highlight.ts";
 
 /**
  * The block composer: renders a list of nodes as nested blocks and edits them in place. Any number of
@@ -85,7 +86,8 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
     twist.dataset.action = "toggle";
     twist.setAttribute("aria-expanded", String(node.open));
 
-    const chip = element("span", "tag" + (depth === 0 && accentRoots ? " root" : ""), node.tag);
+    // same colour per tag name as the XML view, so a tag is recognisable in both
+    const chip = element("span", "tag " + tagColorClass(node.tag) + (depth === 0 && accentRoots ? " root" : ""), node.tag);
 
     let summary: HTMLElement;
     if (!node.open) {
@@ -236,9 +238,14 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
   });
 
   container.addEventListener("keydown", (event) => {
-    const inText = (event.target as HTMLElement).closest(TEXT_SELECTOR);
+    const inText = (event.target as HTMLElement).closest<HTMLElement>(TEXT_SELECTOR);
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !inText) {
       if (undoDelete()) event.preventDefault();
+    }
+    // Escape leaves the text field for the block's own row, so `/` (insert) and the other keys work again
+    if (event.key === "Escape" && inText) {
+      event.preventDefault();
+      inText.closest<HTMLElement>("[data-node]")?.querySelector<HTMLElement>('[data-action="toggle"]')?.focus();
     }
   });
 
