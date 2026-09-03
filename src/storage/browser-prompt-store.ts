@@ -1,15 +1,20 @@
 import { IDB_STORES, idbGet, idbGetAll, idbGetAllKeys, idbSet, withStore } from "./idb.ts";
 import { EXAMPLE_PROMPT_CONTENT, EXAMPLE_PROMPT_TITLE } from "./prompt-defaults.ts";
-import { createPromptStore, type Folder, type PromptListItem, type PromptStore, type PromptStoreBackend } from "./prompt-store.ts";
+import {
+  createPromptStore, folderNameOf, isWithin,
+  type Folder, type PromptListItem, type PromptStore, type PromptStoreBackend,
+} from "./prompt-store.ts";
 
 /**
  * Prompts kept in the browser's IndexedDB — the default, zero-setup storage.
- * Folders are rows keyed by name; prompts are rows keyed by `folder/name` (names never contain `/`),
- * so one folder's prompts are a contiguous key range.
+ * Folders are rows keyed by their path (`default`, `default/archive`); prompts are rows keyed by
+ * `folderPath/name`. Because a nested folder's prompts share the key prefix of its parent, prompt
+ * lookups by folder always also check the row's own `folder` field. Rows written by the flat, pre-tree
+ * version of the app are already in this shape (a top-level path is just the name), so nothing migrates.
  */
 
 interface FolderRow {
-  name: string;
+  path: string;
 }
 
 interface PromptRow {
@@ -22,48 +27,48 @@ interface PromptRow {
 const SEEDED_MARKER = "browser-store-seeded";
 
 const promptKey = (folder: string, name: string) => folder + "/" + name;
-const folderRange = (folder: string) => IDBKeyRange.bound(folder + "/", folder + "/\uffff");
+/** Every prompt row under `folder` — direct prompts and, by prefix, those of its subfolders. */
+const subtreeRange = (folder: string) => IDBKeyRange.bound(folder + "/", folder + "/\uffff");
 
 async function readFolderPrompts(folder: string): Promise<PromptRow[]> {
-  return idbGetAll<PromptRow>(IDB_STORES.prompts, folderRange(folder));
+  return (await idbGetAll<PromptRow>(IDB_STORES.prompts, subtreeRange(folder))).filter((row) => row.folder === folder);
 }
 
 const browserBackend: PromptStoreBackend = {
   async listFolders(): Promise<Folder[]> {
-    const folders = await idbGetAll<FolderRow>(IDB_STORES.folders);
-    const withCounts = await Promise.all(
-      folders.map(async (folder) => ({
-        name: folder.name,
-        prompt_count: (await idbGetAllKeys(IDB_STORES.prompts, folderRange(folder.name))).length,
-      })),
-    );
-    return withCounts.sort((a, b) => a.name.localeCompare(b.name));
+    const paths = (await idbGetAllKeys(IDB_STORES.folders)).map(String);
+    const prompts = await idbGetAll<PromptRow>(IDB_STORES.prompts);
+    return paths
+      .map((path) => ({ path, name: folderNameOf(path), prompt_count: prompts.filter((row) => row.folder === path).length }))
+      .sort((a, b) => a.path.localeCompare(b.path));
   },
 
-  async folderExists(folder) {
-    return (await idbGet<FolderRow>(IDB_STORES.folders, folder)) !== undefined;
+  async folderExists(path) {
+    return (await idbGet<FolderRow>(IDB_STORES.folders, path)) !== undefined;
   },
 
-  createFolder: (folder) => idbSet(IDB_STORES.folders, folder, { name: folder } satisfies FolderRow),
+  createFolder: (path) => idbSet(IDB_STORES.folders, path, { path } satisfies FolderRow),
 
-  async renameFolder(folder, newName) {
-    const prompts = await readFolderPrompts(folder);
+  async renameFolder(path, newPath) {
+    const rekey = (key: string) => newPath + key.slice(path.length);
+    const folderPaths = (await idbGetAllKeys(IDB_STORES.folders)).map(String).filter((key) => isWithin(key, path));
+    const prompts = (await idbGetAll<PromptRow>(IDB_STORES.prompts, subtreeRange(path))).filter((row) => isWithin(row.folder, path));
     await withStore(IDB_STORES.prompts, "readwrite", (store) => {
-      for (const prompt of prompts) {
-        store.delete(promptKey(folder, prompt.name));
-        store.put({ ...prompt, folder: newName }, promptKey(newName, prompt.name));
+      for (const row of prompts) {
+        store.delete(promptKey(row.folder, row.name));
+        const folder = rekey(row.folder);
+        store.put({ ...row, folder }, promptKey(folder, row.name));
       }
     });
     await withStore(IDB_STORES.folders, "readwrite", (store) => {
-      store.delete(folder);
-      store.put({ name: newName } satisfies FolderRow, newName);
+      for (const key of folderPaths) {
+        store.delete(key);
+        store.put({ path: rekey(key) } satisfies FolderRow, rekey(key));
+      }
     });
   },
 
-  async deleteFolder(folder) {
-    await withStore(IDB_STORES.prompts, "readwrite", (store) => { store.delete(folderRange(folder)); });
-    await withStore(IDB_STORES.folders, "readwrite", (store) => { store.delete(folder); });
-  },
+  deleteFolder: (path) => withStore(IDB_STORES.folders, "readwrite", (store) => { store.delete(path); }),
 
   async listPrompts(folder): Promise<PromptListItem[]> {
     return (await readFolderPrompts(folder))

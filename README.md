@@ -35,9 +35,13 @@ src/
     ui-state-store.ts        rail width + accent colour as a second JSON document in localStorage
     idb.ts                   tiny promise wrapper over IndexedDB
     *-validation.ts, *-defaults.ts, prompt-store.test.ts
+  Folders nest: a folder is addressed by its path (`default/archive`); on disk that is a nested directory,
+  in IndexedDB a row keyed by the path. Deleting a folder is only allowed when it is completely empty.
   shared/                theme.css (design tokens, accent tints derived in CSS), base.css, accent.ts, dom.ts, theme.ts
   editor/                editor.css + main.ts; one module per concern
-                         (xml-context, syntax-highlight, suggestions, key-handlers, autosave, storage-bar, ...)
+                         node-tree (model + XML), block-editor, insert-menu, view-toggle, prompt-canvas,
+                         folder-tree + library + folder-actions + prompt-actions (rail), tooltip, rail-resize,
+                         XML view: xml-context, syntax-highlight, suggestions, key-handlers, autosave, ...
   settings/              settings.css + main.ts, blocks-section.ts, tags-section.ts
 ```
 
@@ -68,10 +72,23 @@ behind a hairline guide. Root-level chips take the accent colour.
 - with a selection: `"` `'` `(` `[` `{` `` ` `` `*` `_` wrap it instead of replacing; Tab / Shift+Tab indent / dedent the selected lines
 - Ctrl+B / Ctrl+I / Ctrl+E wrap selection in `**bold**` / `*italic*` / `` `code` ``; ```` ```lang ```` fenced code blocks are highlighted too
 - renaming an opening tag renames its closing tag (and vice versa)
-- the sidebar lists folders; opening one slides in its prompt list, `‹` goes back
-- `+` in the sidebar creates a prompt (a `<prompt>` with one `<context>`); structure comes from the `/` menu
 - copy icon (top right) copies the whole XML to the clipboard
 - autosaves 500 ms after you stop typing; Ctrl+S saves immediately
+
+## Rail
+
+The right-hand rail is a folder tree: folders expand in place, nest to any depth and show how many prompts sit
+beneath them; the open prompt is highlighted and its folder path appears as a chip in the header.
+- hover or focus a folder for its actions: new subfolder, rename, delete (only when it holds nothing at all,
+  so nothing can be orphaned); prompts get rename and delete
+- new folders open straight into an inline rename field — Enter commits, Escape cancels, clicking away commits;
+  a rejected name (duplicate, unsafe characters) stays in the field marked red
+- `New prompt` at the end of a folder creates `Untitled` there and puts the caret in the title to name it
+- search filters prompts at every depth and expands the folders on the way to each match; Escape clears
+- keyboard: arrows move between rows, Left / Right collapse and expand, Enter or Space activates
+- the handle on the rail's inner edge resizes it (150–420 px, double-click or Home resets, arrow keys nudge);
+  the width is remembered
+- hovering or focusing a row for a moment shows its full name and the folder path it sits in
 
 ## Storage
 
@@ -86,8 +103,8 @@ Everything is stored on the user's side; the app has no server.
   those references become `[[tag]]` links and `<` / `&` inside code are escaped.
 - **Folder on disk (Chrome, Edge, Opera on desktop).** The `Open folder…` link at the bottom of the sidebar
   lets you pick a directory; from then on prompts are read from and written to
-  `<picked folder>/<folder>/<name>.xml` — sub-directories are folders, `.xml` files are prompts, other files
-  are ignored. The chosen folder is remembered across reloads (the browser may ask for one confirmation
+  `<picked folder>/<folder>/…/<name>.xml` — directories are folders (nested as deep as you like), `.xml` files
+  are prompts, other files are ignored but kept. The chosen folder is remembered across reloads (the browser may ask for one confirmation
   click, shown as `Reconnect`). When you switch, the app offers to copy your browser-stored prompts into
   the folder. `Use browser storage` detaches the folder again; the files stay on disk.
   Firefox, Safari and mobile browsers lack the folder picker, so they always use browser storage.

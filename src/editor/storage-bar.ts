@@ -16,9 +16,12 @@ import {
   storageUnsupportedNote,
   storageUseBrowserButton,
 } from "./elements.ts";
-import { refreshFolders, resetToFolderView } from "./folder-list.ts";
+import { renderTree } from "./folder-tree.ts";
+import { refreshLibrary } from "./library.ts";
+import { clearEditor, openInitialPrompt } from "./prompt-actions.ts";
+import { editorState } from "./state.ts";
 
-/** Sidebar row showing where prompts are stored (this browser, or a folder on disk) with the switch actions. */
+/** Rail row showing where prompts are stored (this browser, or a folder on disk) with the switch actions. */
 
 export function renderStorageBar(): void {
   const status = storageStatus();
@@ -42,9 +45,12 @@ export function renderStorageBar(): void {
 
 /** Re-reads everything after the backend changed. */
 async function reloadAfterSwitch(): Promise<void> {
-  resetToFolderView();
+  clearEditor();
+  editorState.expandedFolders.clear();
   renderStorageBar();
-  await refreshFolders();
+  await refreshLibrary();
+  renderTree();
+  await openInitialPrompt();
 }
 
 async function openFolder(): Promise<void> {

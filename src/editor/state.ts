@@ -6,6 +6,7 @@ export type EditorView = "blocks" | "xml";
 
 /** The prompt file open in the editor. `content` is the XML string that is saved; `tree` is its block form. */
 export interface OpenPrompt {
+  /** Folder path, e.g. `default/archive`. */
   folder: string;
   name: string;
   content: string;
@@ -17,10 +18,18 @@ export interface OpenPrompt {
 
 /** Mutable state shared by the editor modules. */
 export const editorState = {
+  /** Every folder of the active store, at every depth. */
   folders: [] as Folder[],
-  /** Folder whose prompts fill the sidebar list; `null` while no folder has been opened. */
-  currentFolder: null as string | null,
-  prompts: [] as PromptListItem[],
+  /** Prompts of every folder, keyed by folder path. */
+  promptsByFolder: {} as Record<string, PromptListItem[]>,
+  /** Folder paths currently expanded in the rail. */
+  expandedFolders: new Set<string>(),
+  /** Folder path whose row shows an inline rename field, if any. */
+  renamingFolder: null as string | null,
+  /** Prompt whose row shows an inline rename field, if any. */
+  renamingPrompt: null as { folder: string; name: string } | null,
+  /** Current rail search text. */
+  searchQuery: "",
   currentPrompt: null as OpenPrompt | null,
   view: "blocks" as EditorView,
   /** Custom blocks from settings (`<command` expands to content in the XML view). */
