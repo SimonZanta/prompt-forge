@@ -1,5 +1,5 @@
 import { promptStore } from "../storage/active-prompt-store.ts";
-import { editorTextarea, saveStatusIndicator, titleInput } from "./elements.ts";
+import { saveStatusIndicator, titleInput } from "./elements.ts";
 import { refreshPromptList } from "./prompt-list.ts";
 import { editorState } from "./state.ts";
 
@@ -12,7 +12,7 @@ export function setSaveStatus(text: string): void {
   saveStatusIndicator.textContent = text;
 }
 
-/** (Re)starts the autosave countdown; called on every edit. */
+/** (Re)starts the autosave countdown; called on every edit in either view. */
 export function scheduleSave(): void {
   if (!editorState.currentPrompt) return;
   setSaveStatus("●");
@@ -34,12 +34,15 @@ export async function flushPendingSave(): Promise<void> {
   }
 }
 
-/** Writes the content of the current prompt to its file in the active store. */
+/**
+ * Writes the open prompt's `content` — the XML string — to its file. Both views keep `content`
+ * current (the block editor by re-serializing, the XML view by writing the textarea through), so the
+ * saver never needs to know which view is active.
+ */
 export async function saveCurrentPrompt(): Promise<void> {
   pendingSaveTimer = null;
   const prompt = editorState.currentPrompt;
   if (!prompt) return;
-  prompt.content = editorTextarea.value;
   try {
     await promptStore().writePrompt(prompt.folder, prompt.name, prompt.content);
     setSaveStatus("");

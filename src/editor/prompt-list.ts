@@ -1,15 +1,17 @@
 import { promptStore } from "../storage/active-prompt-store.ts";
+import { NEW_PROMPT_CONTENT } from "../storage/prompt-defaults.ts";
 import type { Prompt, PromptListItem } from "../storage/prompt-store.ts";
 import { cancelPendingSave, flushPendingSave, setSaveStatus } from "./autosave.ts";
-import { editorTextarea, newPromptButton, promptListElement, templateMenu, titleInput } from "./elements.ts";
-import { refreshHighlight, syncHighlightScroll } from "./highlight-layer.ts";
+import { editorTextarea, newPromptButton, promptListElement, titleInput } from "./elements.ts";
+import { refreshHighlight } from "./highlight-layer.ts";
+import { migrateLegacyXml } from "./legacy-xml.ts";
 import { askForName } from "./modal.ts";
+import { parsePromptXml, type PromptTree } from "./node-tree.ts";
 import { editorState } from "./state.ts";
 import { closeSuggestions } from "./suggestions.ts";
-import { PROMPT_TEMPLATES, type PromptTemplate } from "./templates.ts";
+import { applyView } from "./view-toggle.ts";
 
-/** Sidebar prompts pane: the file list of the open folder, the "+" template menu,
-    and switching / creating / renaming / deleting prompts. */
+/** Sidebar prompts pane: the file list of the open folder and switching / creating / renaming / deleting prompts. */
 
 /** Empties the editor when the open prompt (or its folder) was deleted. */
 export function clearEditor(): void {
@@ -20,6 +22,7 @@ export function clearEditor(): void {
   cancelPendingSave();
   setSaveStatus("");
   refreshHighlight();
+  applyView();
 }
 
 export function renderPromptList(): void {
@@ -59,6 +62,21 @@ export async function refreshPromptList(): Promise<void> {
   renderPromptList();
 }
 
+/**
+ * Parses a file into its block tree. A file from the old free-text editor that fails to parse is
+ * repaired once (backtick tag references become `[[tag]]` links, code is escaped) and written back;
+ * one that still fails opens in the XML view only.
+ */
+async function loadTree(folder: string, name: string, content: string): Promise<{ content: string; tree: PromptTree | null }> {
+  const tree = parsePromptXml(content);
+  if (tree) return { content, tree };
+  const migrated = migrateLegacyXml(content);
+  const migratedTree = migrated !== content ? parsePromptXml(migrated) : null;
+  if (!migratedTree) return { content, tree: null };
+  await promptStore().writePrompt(folder, name, migrated);
+  return { content: migrated, tree: migratedTree };
+}
+
 /** Opens the prompt named `name` from the current folder (after saving the previous one). */
 export async function selectPrompt(name: string): Promise<void> {
   await flushPendingSave();
@@ -70,16 +88,16 @@ export async function selectPrompt(name: string): Promise<void> {
   } catch {
     return;
   }
-  editorState.currentPrompt = { folder, name: prompt.name, content: prompt.content || "" };
+  const { content, tree } = await loadTree(folder, prompt.name, prompt.content || "");
+  editorState.currentPrompt = { folder, name: prompt.name, content, tree, xmlValid: tree !== null };
   titleInput.value = prompt.name;
-  editorTextarea.value = prompt.content || "";
-  editorState.previousValue = editorTextarea.value;
+  editorTextarea.value = content;
+  editorState.previousValue = content;
   refreshHighlight();
-  syncHighlightScroll();
   renderPromptList();
   setSaveStatus("");
   closeSuggestions();
-  editorTextarea.focus();
+  applyView();
 }
 
 /** Deletes a prompt; if it was open, the first remaining prompt is selected. */
@@ -123,47 +141,24 @@ export async function renamePrompt(prompt: PromptListItem): Promise<void> {
   renderPromptList();
 }
 
-/** Asks for a name, creates the prompt file from the template and opens it. */
-export async function createPromptFromTemplate(template: PromptTemplate): Promise<void> {
+/** Asks for a name, creates an empty prompt (a `<prompt>` with one `<context>`) and opens it. */
+export async function createPrompt(): Promise<void> {
   const folder = editorState.currentFolder;
   if (folder === null) return;
-  const defaultName = template.name === "Blank" ? "Untitled" : template.name;
-  const enteredName = await askForName(defaultName, { title: "New prompt", confirmLabel: "Create" });
+  const enteredName = await askForName("Untitled", { title: "New prompt", confirmLabel: "Create" });
   if (enteredName === null || !enteredName.trim()) return;
   await flushPendingSave();
   let created: Prompt;
   try {
-    created = await promptStore().createPrompt(folder, enteredName.trim(), template.content);
+    created = await promptStore().createPrompt(folder, enteredName.trim(), NEW_PROMPT_CONTENT);
   } catch (error) {
     alert(error instanceof Error ? error.message : String(error));
     return;
   }
   await refreshPromptList();
   await selectPrompt(created.name);
-  editorTextarea.focus();
 }
 
-function renderTemplateMenu(): void {
-  templateMenu.innerHTML = '<div class="tmenu-label">NEW FROM TEMPLATE</div>';
-  for (const template of PROMPT_TEMPLATES) {
-    const item = document.createElement("div");
-    item.className = "item";
-    item.textContent = template.name;
-    item.onclick = (event) => {
-      event.stopPropagation();
-      templateMenu.hidden = true;
-      createPromptFromTemplate(template);
-    };
-    templateMenu.appendChild(item);
-  }
-}
-
-/** The "+" button toggles the template menu; clicking anywhere else closes it. */
-export function bindTemplateMenu(): void {
-  renderTemplateMenu();
-  newPromptButton.onclick = (event) => {
-    event.stopPropagation();
-    templateMenu.hidden = !templateMenu.hidden;
-  };
-  document.addEventListener("click", () => { templateMenu.hidden = true; });
+export function bindNewPromptButton(): void {
+  newPromptButton.onclick = createPrompt;
 }
