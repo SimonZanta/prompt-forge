@@ -32,9 +32,10 @@ src/
     directory-handle.ts      folder picker, permission checks, remembering the handle in IndexedDB
     active-prompt-store.ts   which backend is active, switching, copying browser prompts into a folder
     settings-store.ts        blocks + tags as one JSON document in localStorage
+    ui-state-store.ts        rail width + accent colour as a second JSON document in localStorage
     idb.ts                   tiny promise wrapper over IndexedDB
     *-validation.ts, *-defaults.ts, prompt-store.test.ts
-  shared/                theme.css, base.css, dom.ts, theme.ts
+  shared/                theme.css (design tokens, accent tints derived in CSS), base.css, accent.ts, dom.ts, theme.ts
   editor/                editor.css + main.ts; one module per concern
                          (xml-context, syntax-highlight, suggestions, key-handlers, autosave, storage-bar, ...)
   settings/              settings.css + main.ts, blocks-section.ts, tags-section.ts
@@ -45,6 +46,20 @@ same in memory.
 
 ## Editor
 
+Two views of the same prompt, switched with the Blocks / XML toggle in the header.
+
+**Blocks** (default) — every XML element is a block: a monospace tag chip, editable text, nested children
+behind a hairline guide. Root-level chips take the accent colour.
+- `/` (or the insert row at the bottom, or `+` on a block) opens the insert menu: custom blocks and tags from
+  settings plus tags already used in the prompt; type to filter, arrows + Enter insert, Escape closes, an
+  unmatched name creates that tag. Inserted blocks are copies, so inserting a block twice gives independent trees.
+- typing `[[` in a text field opens the same menu to link another block as `[[tag]]`
+- the chevron collapses a block to one line (a preview of its text or its child count); leaves show a word count
+- hover or focus a block for its controls: drag grip (reorders among siblings), add child, delete;
+  Ctrl+Z outside a text field restores the last deleted block to where it was
+- text edits never rebuild the tree, so the caret stays put; structural changes do
+
+**XML** — the raw file, with everything the old editor had:
 - `<` opens tag suggestions (defaults + every tag you've used in any prompt); Enter/Tab accepts
 - typing `>` after `<tag` auto-inserts `</tag>` and puts the cursor between
 - typing `</` completes the nearest open tag and dedents it one level on its own line
@@ -54,9 +69,7 @@ same in memory.
 - Ctrl+B / Ctrl+I / Ctrl+E wrap selection in `**bold**` / `*italic*` / `` `code` ``; ```` ```lang ```` fenced code blocks are highlighted too
 - renaming an opening tag renames its closing tag (and vice versa)
 - the sidebar lists folders; opening one slides in its prompt list, `‹` goes back
-- `+` in the sidebar offers templates (blank, tasks, summarization, general skeleton)
-- a completed `<command>…</command>` element is offered to be saved as its own prompt file in the
-  current folder, then stamped with `name="…"` so it is only extracted once
+- `+` in the sidebar creates a prompt (a `<prompt>` with one `<context>`); structure comes from the `/` menu
 - copy icon (top right) copies the whole XML to the clipboard
 - autosaves 500 ms after you stop typing; Ctrl+S saves immediately
 
@@ -66,6 +79,11 @@ Everything is stored on the user's side; the app has no server.
 
 - **Browser storage (default).** On first visit prompts live in the browser's IndexedDB, seeded with a
   `default` folder and an example prompt. Works in every browser, nothing to set up.
+- **On disk a prompt is its XML string**, in both backends — the block tree is derived from it on open and
+  re-serialized on every edit (two-space indent, text trimmed, `<` / `&` in text as entities; comments and
+  processing instructions are not kept). A file that is not well-formed XML opens in the XML view only. Files
+  from the old free-text editor that used `` `<tag>` `` to refer to a block are rewritten once on first open:
+  those references become `[[tag]]` links and `<` / `&` inside code are escaped.
 - **Folder on disk (Chrome, Edge, Opera on desktop).** The `Open folder…` link at the bottom of the sidebar
   lets you pick a directory; from then on prompts are read from and written to
   `<picked folder>/<folder>/<name>.xml` — sub-directories are folders, `.xml` files are prompts, other files
@@ -74,7 +92,9 @@ Everything is stored on the user's side; the app has no server.
   the folder. `Use browser storage` detaches the folder again; the files stay on disk.
   Firefox, Safari and mobile browsers lack the folder picker, so they always use browser storage.
 - **Settings** (custom blocks, permanent tags) are one JSON document under the `settings` key in
-  `localStorage`, seeded with defaults on first load. The theme is in `localStorage` as well.
+  `localStorage`, seeded with defaults on first load.
+- **UI state** (rail width, accent colour) is a second JSON document under the `ui` key; the theme keeps
+  its own `theme` key. Both are read by the inline script in `<head>` so the page paints correctly at once.
 
 Clearing site data in the browser resets everything to the defaults. A `prompts/` folder from the old
 server-based version already has the right layout — just open it.

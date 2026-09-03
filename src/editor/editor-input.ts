@@ -1,5 +1,4 @@
 import { scheduleSave } from "./autosave.ts";
-import { scheduleCommandCheck } from "./command-extraction.ts";
 import { editorTextarea } from "./elements.ts";
 import { refreshHighlight, syncHighlightScroll } from "./highlight-layer.ts";
 import { computeLineFill } from "./line-fill.ts";
@@ -7,6 +6,9 @@ import { editorState } from "./state.ts";
 import { updateSuggestions } from "./suggestions.ts";
 import { computePartnerRename } from "./tag-rename-sync.ts";
 import { insertTextAtCursor } from "./text-editing.ts";
+import { syncTreeFromXml } from "./view-toggle.ts";
+
+/** Input handling for the XML view's textarea. */
 
 /** Guards against re-entering the fill logic from the input event our own insertion triggers. */
 let isFillingLine = false;
@@ -43,9 +45,9 @@ function handleEditorInput(event: Event): void {
   syncPartnerTagName();
   refreshHighlight();
   syncHighlightScroll();
+  syncTreeFromXml();
   scheduleSave();
   updateSuggestions();
-  scheduleCommandCheck();
 }
 
 export function bindEditorInput(): void {

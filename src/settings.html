@@ -4,13 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prompt Forge — Settings</title>
-<!-- Applies the saved theme before the first paint to avoid a flash; kept inline on purpose because
+<!-- Applies the saved theme and accent before the first paint to avoid a flash; kept inline on purpose because
      bundled scripts run after the stylesheet is applied. -->
 <script>
   (function () {
-    var savedTheme = null;
-    try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
+    var savedTheme = null, ui = null;
+    try { savedTheme = localStorage.getItem('theme'); ui = JSON.parse(localStorage.getItem('ui')); } catch (e) {}
     document.documentElement.dataset.theme = savedTheme === 'light' ? 'light' : 'dark';
+    // only the raw colour is stored; theme.css derives the two tints from it
+    if (ui && /^#[0-9A-Fa-f]{6}$/.test(ui.accent || '')) document.documentElement.style.setProperty('--accent', ui.accent);
   })();
 </script>
 <link rel="stylesheet" href="./shared/theme.css">

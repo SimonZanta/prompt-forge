@@ -1,11 +1,14 @@
-/** Content of the example prompt inserted into an empty database. */
+/** What a brand-new prompt starts as. */
+export const NEW_PROMPT_CONTENT = "<prompt>\n  <context></context>\n</prompt>\n";
+
+/** Content of the example prompt inserted into an empty database. `[[tag]]` links refer to sibling blocks. */
 export const EXAMPLE_PROMPT_TITLE = "Summary prompt (example)";
 
 export const EXAMPLE_PROMPT_CONTENT = `<prompt_summary>
   <instruction>
-    Summarize the text provided in the \`<text_to_summarize>\` tag in a single concise paragraph,
+    Summarize the text provided in [[text_to_summarize]] in a single concise paragraph,
     focusing on the main challenges and solutions presented. The answer should be placed
-    within the \`<generated_summary>\` tag.
+    within the [[generated_summary]] tag.
   </instruction>
   <text_to_summarize>
     The rapid expansion of generative artificial intelligence presents a unique set of ethical challenges,
