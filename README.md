@@ -55,7 +55,8 @@ behind a hairline guide. A chip has the same colour as that tag in the XML view;
 - `/` (or the insert row at the bottom, or `+` on a block) opens the insert menu: custom blocks and tags from
   settings plus tags already used in the prompt; type to filter, arrows + Enter insert, Escape closes, an
   unmatched name creates that tag. Inserted blocks are copies, so inserting a block twice gives independent trees.
-- typing `[[` in a text field opens the same menu to link another block as `[[tag]]`
+- typing `[[` in a text field opens the same menu to link another block as `[[tag]]`; links are shown in that
+  tag's colour in both views (inside block text via the CSS Custom Highlight API)
 - the chevron collapses a block to one line (a preview of its text or its child count); leaves show a word count
 - hover or focus a block for its controls: drag grip (reorders among siblings), add child, delete;
   Ctrl+Z outside a text field restores the last deleted block to where it was

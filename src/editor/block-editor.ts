@@ -1,4 +1,5 @@
 import { iconButton, svgIcon } from "../shared/icons.ts";
+import { clearLinkHighlights, updateFieldLinkHighlights, updateLinkHighlights } from "./link-highlight.ts";
 import { countWords, findNode, type NodeLocation, type PromptNode } from "./node-tree.ts";
 import { tagColorClass } from "./syntax-highlight.ts";
 
@@ -127,11 +128,13 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
   }
 
   function render(): void {
+    clearLinkHighlights(container);
     container.replaceChildren(...options.getNodes().map((node) => renderNode(node, 0)));
     const addRow = element("button", "addrow", element("span", "key", "/"), " type to insert a block");
     addRow.type = "button";
     addRow.dataset.action = "add-root";
     container.appendChild(addRow);
+    updateLinkHighlights(container);
   }
 
   function focusText(nodeId: string): boolean {
@@ -209,6 +212,7 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
     const hit = block && locate(block.dataset.node!);
     if (!hit) return;
     hit.node.text = fieldText(field);
+    updateFieldLinkHighlights(field);
     const meta = block.querySelector<HTMLElement>(":scope > .bhead > .meta");
     if (meta && !hit.node.children.length) meta.textContent = hit.node.text ? countWords(hit.node.text) + " w" : "";
     options.onChange("text");
