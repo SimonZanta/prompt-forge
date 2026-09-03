@@ -1,5 +1,5 @@
 import {
-  backButton, canvasElement, copyButton, editorTextarea, folderChip, saveStatusIndicator, settingsButton, settingsLabel,
+  backButton, canvasElement, copiedNote, copyButton, editorTextarea, folderChip, saveStatusIndicator, settingsButton, settingsLabel,
   settingsPane, titleInput, viewBlocksButton, viewSegment, viewXmlButton, xmlNote, xmlWrap,
 } from "./elements.ts";
 import { refreshHighlight, syncHighlightScroll } from "./highlight-layer.ts";
@@ -64,6 +64,7 @@ export function applyView(): void {
   saveStatusIndicator.hidden = settings;
   viewSegment.hidden = settings;
   copyButton.hidden = settings;
+  if (settings) copiedNote.hidden = true;
   settingsButton.setAttribute("aria-pressed", String(settings));
 
   canvasElement.hidden = settings || !blocks;
