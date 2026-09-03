@@ -274,9 +274,13 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
     const block = grip?.closest<HTMLElement>("[data-node]");
     if (!grip || !block) return;
     draggedId = block.dataset.node!;
-    block.classList.add("dragging");
     event.dataTransfer!.effectAllowed = "move";
     event.dataTransfer!.setData("text/plain", draggedId);
+    // the ghost under the pointer is the whole block, not just the grip
+    const rect = block.getBoundingClientRect();
+    event.dataTransfer!.setDragImage(block, event.clientX - rect.left, event.clientY - rect.top);
+    // the class is added after this frame, or the greyed-out look would be captured into the ghost
+    requestAnimationFrame(() => block.classList.add("dragging"));
   });
   container.addEventListener("dragover", (event) => {
     const over = siblingBlockAt(event.target as HTMLElement);
