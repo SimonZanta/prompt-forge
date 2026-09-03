@@ -1,11 +1,11 @@
-import { EXAMPLE_BLOCK_COMMAND, EXAMPLE_BLOCK_CONTENT } from "./block-defaults.ts";
+import { DEFAULT_BLOCKS } from "./block-defaults.ts";
 import { isValidBlockCommand } from "./block-validation.ts";
 import { DEFAULT_TAG_NAMES } from "./tag-defaults.ts";
 import { isValidTagName } from "./tag-validation.ts";
 
 /** Settings (custom blocks, permanent tags) live as one JSON document in localStorage. */
 
-/** A custom block: typing `<command` in the editor expands to `content`. */
+/** A custom block: `content` is an XML fragment (one or more top-level elements) inserted under the name `command`. */
 export interface Block {
   command: string;
   content: string;
@@ -23,7 +23,7 @@ export const SETTINGS_KEY = "settings";
 export function defaultSettings(): Settings {
   return {
     version: 1,
-    blocks: [{ command: EXAMPLE_BLOCK_COMMAND, content: EXAMPLE_BLOCK_CONTENT }],
+    blocks: DEFAULT_BLOCKS.map((block) => ({ ...block })),
     tags: [...DEFAULT_TAG_NAMES],
   };
 }

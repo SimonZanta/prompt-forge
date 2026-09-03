@@ -1,6 +1,6 @@
 import { promptStore } from "../storage/active-prompt-store.ts";
-import { editorTextarea, saveStatusIndicator, titleInput } from "./elements.ts";
-import { refreshPromptList } from "./prompt-list.ts";
+import { saveStatusIndicator, titleInput } from "./elements.ts";
+import { renamePrompt } from "./prompt-actions.ts";
 import { editorState } from "./state.ts";
 
 const AUTOSAVE_DELAY_MS = 500;
@@ -12,7 +12,7 @@ export function setSaveStatus(text: string): void {
   saveStatusIndicator.textContent = text;
 }
 
-/** (Re)starts the autosave countdown; called on every edit. */
+/** (Re)starts the autosave countdown; called on every edit in either view. */
 export function scheduleSave(): void {
   if (!editorState.currentPrompt) return;
   setSaveStatus("●");
@@ -34,12 +34,15 @@ export async function flushPendingSave(): Promise<void> {
   }
 }
 
-/** Writes the content of the current prompt to its file in the active store. */
+/**
+ * Writes the open prompt's `content` — the XML string — to its file. Both views keep `content`
+ * current (the block editor by re-serializing, the XML view by writing the textarea through), so the
+ * saver never needs to know which view is active.
+ */
 export async function saveCurrentPrompt(): Promise<void> {
   pendingSaveTimer = null;
   const prompt = editorState.currentPrompt;
   if (!prompt) return;
-  prompt.content = editorTextarea.value;
   try {
     await promptStore().writePrompt(prompt.folder, prompt.name, prompt.content);
     setSaveStatus("");
@@ -61,18 +64,15 @@ async function renameCurrentPromptFromTitle(): Promise<void> {
     titleInput.value = prompt.name;
     return;
   }
-  try {
-    const renamed = await promptStore().renamePrompt(prompt.folder, prompt.name, name);
-    prompt.name = renamed.name;
-    titleInput.value = renamed.name;
-    if (prompt.folder === editorState.currentFolder) await refreshPromptList();
-  } catch (error) {
-    alert(error instanceof Error ? error.message : String(error));
+  const error = await renamePrompt(prompt.folder, prompt.name, name);
+  if (error) {
+    alert(error);
     titleInput.value = prompt.name;
   }
 }
 
 export function bindAutosave(): void {
   titleInput.addEventListener("change", renameCurrentPromptFromTitle);
+  titleInput.addEventListener("keydown", (event) => { if (event.key === "Enter") titleInput.blur(); });
   window.addEventListener("beforeunload", () => { if (pendingSaveTimer) saveCurrentPrompt(); });
 }

@@ -1,7 +1,8 @@
-/** Example custom block inserted into an empty database. */
-export const EXAMPLE_BLOCK_COMMAND = "my-custom-command";
+import type { Block } from "./settings-store.ts";
 
-export const EXAMPLE_BLOCK_CONTENT = `<task>
-  <task_description></task_description>
-  <example></example>
-</task>`;
+/** Custom blocks seeded on a fresh install; the insert menu (`/`) offers them by command name. */
+export const DEFAULT_BLOCKS: Block[] = [
+  { command: "task-block", content: "<task>\n  <task_description></task_description>\n  <example></example>\n</task>" },
+  { command: "rules-block", content: "<rules>\n  <rule></rule>\n  <rule></rule>\n  <rule></rule>\n</rules>" },
+  { command: "context-block", content: "<context>\n  <constraints></constraints>\n</context>" },
+];

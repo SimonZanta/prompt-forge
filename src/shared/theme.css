@@ -1,26 +1,38 @@
-/* Color tokens for both themes. Dark is the default; light overrides via html[data-theme="light"]. */
+/*
+  Design tokens. Dark is the default; light overrides via html[data-theme="light"].
+
+  Accent: `--accent` is the only accent value the app ever sets (the user picks it in settings, the
+  inline <head> script restores it before first paint). The two tints are derived from it here with
+  relative colour syntax, once per theme, so flipping the theme recomputes them and nothing else in
+  the app hardcodes a blue:
+    --accent-soft  low-alpha fill for chips, active rows, selection
+    --accent-text  same hue re-lit to ~72% (dark) / ~38% (light) so any hex stays readable on text
+*/
 :root {
-  --bg: #1a1a1a;
-  --bg-sidebar: #101010;
-  --bg-elevated: #262626;
-  --bg-hover: #2c2c2c;
-  --bg-hover-soft: rgba(255,255,255,.06);
-  --fg: #c6c6c6;
-  --fg-strong: #e0e0e0;
-  --fg-muted: #7a7a7a;
-  --fg-dim: #5c5c5c;
-  --fg-title: #9a9a9a;
-  --fg-list-hover: #c9c9c9;
-  --fg-list-active: #ececec;
-  --fg-menu: #b5b5b5;
-  --fg-menu-hover: #eeeeee;
-  --border: #333333;
-  --shadow: rgba(0,0,0,.45);
-  --accent: #85a3c4;
-  --danger: #dd9999;
-  --ok: #8fc98f;
-  --caret: #e8e8e8;
-  --selection: rgba(104,140,176,.35);
+  --accent: #4C8DF5;
+  --rail: 190px;
+  --radius: 6px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --bg: #17181a;
+  --surface: #1b1d20;
+  --raised: #212328;
+  --border: #292c31;
+  --border-strong: #3a3e45;
+  --text: #dfe1e4;
+  --text-2: #989ca3;
+  --text-3: #6a6e75;
+  --danger: #e0736b;
+  --ok: #6bbf8a;
+  --shadow: rgba(0, 0, 0, .45);
+  --scrollbar: #2e2e2e;
+  --scrollbar-hover: #3d3d3d;
+
+  --accent-soft: rgb(from var(--accent) r g b / .18);
+  --accent-text: hsl(from var(--accent) h max(s, 35) 72);
+
+  /* XML view syntax colours */
   --tag-0: #c88484;
   --tag-1: #91c884;
   --tag-2: #849fc8;
@@ -36,41 +48,30 @@
   --md-b: #dcc389;
   --md-i: #b79cc9;
   --md-c: #c9a189;
-  --md-c-bg: rgba(255,255,255,.05);
+  --md-c-bg: rgba(255, 255, 255, .05);
   --md-h: #8fc4b0;
   --md-cb: #b5bda9;
-  --md-cb-bg: rgba(255,255,255,.04);
+  --md-cb-bg: rgba(255, 255, 255, .04);
   --md-f: #5d6a75;
-  --placeholder: #494949;
-  --suggest-bg: #232323;
-  --suggest-fg: #a8a8a8;
-  --suggest-sel-bg: #333333;
-  --suggest-sel-fg: #ffffff;
-  --scrollbar: #2e2e2e;
-  --scrollbar-hover: #3d3d3d;
 }
 html[data-theme="light"] {
-  --bg: #f3f3f1;
-  --bg-sidebar: #e6e6e2;
-  --bg-elevated: #ffffff;
-  --bg-hover: #e9e9e6;
-  --bg-hover-soft: rgba(0,0,0,.06);
-  --fg: #2b2b2b;
-  --fg-strong: #111111;
-  --fg-muted: #7d7d7a;
-  --fg-dim: #9a9a96;
-  --fg-title: #555555;
-  --fg-list-hover: #333333;
-  --fg-list-active: #111111;
-  --fg-menu: #444444;
-  --fg-menu-hover: #111111;
-  --border: #d9d9d5;
-  --shadow: rgba(0,0,0,.14);
-  --accent: #3d6a99;
-  --danger: #c04a4a;
-  --ok: #3c8c3c;
-  --caret: #111111;
-  --selection: rgba(61,106,153,.25);
+  --bg: #fbfbfa;
+  --surface: #f2f2f0;
+  --raised: #ffffff;
+  --border: #e4e3df;
+  --border-strong: #cbcac5;
+  --text: #232427;
+  --text-2: #6b6e73;
+  --text-3: #93969b;
+  --danger: #b8433a;
+  --ok: #2f7d52;
+  --shadow: rgba(0, 0, 0, .14);
+  --scrollbar: #cfcfcb;
+  --scrollbar-hover: #b8b8b4;
+
+  --accent-soft: rgb(from var(--accent) r g b / .13);
+  --accent-text: hsl(from var(--accent) h max(s, 35) 38);
+
   --tag-0: #b03a3a;
   --tag-1: #3f8a2f;
   --tag-2: #3a5fb0;
@@ -86,16 +87,9 @@ html[data-theme="light"] {
   --md-b: #8a6a10;
   --md-i: #6f4a8f;
   --md-c: #9a4f2a;
-  --md-c-bg: rgba(0,0,0,.06);
+  --md-c-bg: rgba(0, 0, 0, .06);
   --md-h: #2a7a5f;
   --md-cb: #4a5a3f;
-  --md-cb-bg: rgba(0,0,0,.045);
+  --md-cb-bg: rgba(0, 0, 0, .045);
   --md-f: #8c99a3;
-  --placeholder: #b4b4b0;
-  --suggest-bg: #ffffff;
-  --suggest-fg: #444444;
-  --suggest-sel-bg: #e4e4e0;
-  --suggest-sel-fg: #111111;
-  --scrollbar: #cfcfcb;
-  --scrollbar-hover: #b8b8b4;
 }

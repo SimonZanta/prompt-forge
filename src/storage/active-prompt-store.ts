@@ -100,14 +100,19 @@ export async function countBrowserPrompts(): Promise<number> {
 /** Copies every browser-stored prompt into `target`, keeping files that already exist there. Returns the number copied. */
 export async function copyBrowserPromptsInto(target: PromptStore): Promise<number> {
   let copied = 0;
-  const targetFolders = new Set((await target.listFolders()).map((folder) => folder.name));
-  for (const folder of await browserPromptStore.listFolders()) {
-    if (!targetFolders.has(folder.name)) await target.createFolder(folder.name);
-    const existing = new Set((await target.listPrompts(folder.name)).map((prompt) => prompt.name));
-    for (const prompt of await browserPromptStore.listPrompts(folder.name)) {
+  const targetFolders = new Set((await target.listFolders()).map((folder) => folder.path));
+  // sorted by path, so a parent always precedes its subfolders
+  const folders = (await browserPromptStore.listFolders()).sort((a, b) => a.path.localeCompare(b.path));
+  for (const folder of folders) {
+    if (!targetFolders.has(folder.path)) {
+      await target.createFolder(folder.path);
+      targetFolders.add(folder.path);
+    }
+    const existing = new Set((await target.listPrompts(folder.path)).map((prompt) => prompt.name));
+    for (const prompt of await browserPromptStore.listPrompts(folder.path)) {
       if (existing.has(prompt.name)) continue;
-      const { content } = await browserPromptStore.readPrompt(folder.name, prompt.name);
-      await target.createPrompt(folder.name, prompt.name, content);
+      const { content } = await browserPromptStore.readPrompt(folder.path, prompt.name);
+      await target.createPrompt(folder.path, prompt.name, content);
       copied++;
     }
   }
