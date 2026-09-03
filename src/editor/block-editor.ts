@@ -276,14 +276,18 @@ export function createBlockEditor(container: HTMLElement, options: BlockEditorOp
     draggedId = block.dataset.node!;
     event.dataTransfer!.effectAllowed = "move";
     event.dataTransfer!.setData("text/plain", draggedId);
-    // the ghost under the pointer is the whole block, not just the grip
+    // The ghost under the pointer is a highlighted copy of the whole block. The browser snapshots the
+    // element passed to setDragImage as it is rendered right now, so the copy is styled first and
+    // parked off-screen, then discarded once the snapshot has been taken.
     const rect = block.getBoundingClientRect();
-    event.dataTransfer!.setDragImage(block, event.clientX - rect.left, event.clientY - rect.top);
-    // classes go on after this frame so the ghost is captured in the block's resting look
-    requestAnimationFrame(() => {
-      block.classList.add("dragging");
-      container.classList.add("drag-active");
-    });
+    const ghost = block.cloneNode(true) as HTMLElement;
+    ghost.classList.add("drag-ghost");
+    ghost.style.width = rect.width + "px";
+    document.body.appendChild(ghost);
+    event.dataTransfer!.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
+    setTimeout(() => ghost.remove(), 0);
+    block.classList.add("dragging");
+    container.classList.add("drag-active");
   });
   container.addEventListener("dragover", (event) => {
     const over = siblingBlockAt(event.target as HTMLElement);
