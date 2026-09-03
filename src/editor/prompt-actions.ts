@@ -23,7 +23,6 @@ export function updateHeader(): void {
   const prompt = editorState.currentPrompt;
   titleInput.value = prompt?.name ?? "";
   folderChip.textContent = prompt ? prompt.folder.split("/").join(" / ") : "";
-  folderChip.hidden = !prompt;
 }
 
 /** Empties the editor when the open prompt (or its folder) was deleted. */
@@ -73,6 +72,7 @@ export async function selectPrompt(folder: string, name: string): Promise<void> 
   updateHeader();
   expandPathTo(folder);
   renderTree();
+  editorState.page = "editor";
   applyView();
 }
 

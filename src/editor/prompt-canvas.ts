@@ -53,7 +53,7 @@ export function bindPromptCanvas(): void {
     if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("input, textarea, [contenteditable]")) return;
-    if (editorState.view !== "blocks" || !editorState.currentPrompt?.tree) return;
+    if (editorState.page !== "editor" || editorState.view !== "blocks" || !editorState.currentPrompt?.tree) return;
     event.preventDefault();
     openRootInsertMenu();
   });
