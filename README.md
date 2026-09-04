@@ -57,11 +57,25 @@ behind a hairline guide. A chip has the same colour as that tag in the XML view;
   unmatched name creates that tag. Inserted blocks are copies, so inserting a block twice gives independent trees.
 - typing `[[` in a text field opens the same menu to link another block as `[[tag]]`; links are shown in that
   tag's colour in both views (inside block text via the CSS Custom Highlight API)
+- the menu offers, besides settings and the tags already used as blocks, every tag referenced as a `[[tag]]` link in
+  the prompt's text — so a tag you linked before creating its block is picked, not retyped
 - the chevron collapses a block to one line (a preview of its text or its child count); leaves show a word count
-- hover or focus a block for its controls: drag grip (reorders among siblings), add child, delete;
-  Ctrl+Z outside a text field restores the last deleted block to where it was
+- hover or focus a block for its controls: drag grip (reorders among siblings), add child, delete
+- click a tag chip (or press F2 on the block) to rename the tag inline; every block with that name and every
+  `[[link]]` to it in the prompt follow. Enter commits, Escape cancels, an invalid name stays marked red
+- deleting a block deletes everything nested in it; a toast offers Undo, and Ctrl+Z outside a text field restores
+  the last deleted block to where it was
 - text edits never rebuild the tree, so the caret stays put; structural changes do
-- Escape in a text field steps out to the block's row, so `/` and Ctrl+Z work again without the mouse
+
+Keyboard-only editing — the block row is the cursor:
+- Escape in a text field selects its block; Escape on a nested block selects its parent
+- Up / Down move one block at a time through the visible blocks in document order — into an expanded block's
+  children, past a collapsed block without opening it
+- Enter expands a collapsed block; on an expanded block it puts the caret in its text (or steps into the first
+  child when the block has no text of its own)
+- Left collapses (or goes to the parent), Right expands (or goes to the first child)
+- `/` inserts a new child under the selected block and focuses it; Delete (or Backspace) removes the block with
+  all its subblocks; F2 renames its tag
 
 **XML** — the raw file, with everything the old editor had:
 - `<` opens tag suggestions (defaults + every tag you've used in any prompt); Enter/Tab accepts
@@ -81,6 +95,8 @@ The right-hand rail is a folder tree: folders expand in place, nest to any depth
 beneath them; the open prompt is highlighted and its folder path appears as a chip in the header.
 - hover or focus a folder for its actions: new subfolder, rename, delete (only when it holds nothing at all,
   so nothing can be orphaned); prompts get rename and delete
+- drag a prompt onto a folder (or onto anything inside it) to move it there; the target lights up, a name already
+  taken in the target is refused, and the open prompt keeps following its file
 - new folders open straight into an inline rename field — Enter commits, Escape cancels, clicking away commits;
   a rejected name (duplicate, unsafe characters) stays in the field marked red
 - `New prompt` at the end of a folder creates `Untitled` there and puts the caret in the title to name it
@@ -89,6 +105,9 @@ beneath them; the open prompt is highlighted and its folder path appears as a ch
 - the handle on the rail's inner edge resizes it (150–420 px, double-click or Home resets, arrow keys nudge);
   the width is remembered
 - hovering or focusing a row for a moment shows its full name and the folder path it sits in
+
+Messages never use browser dialogs: errors and confirmations ("Deleted task — Undo", "Moved …") are toasts in the
+bottom-left corner, and destructive actions ask in a small in-app dialog where Enter confirms and Escape cancels.
 
 ## Settings
 

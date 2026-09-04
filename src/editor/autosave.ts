@@ -1,6 +1,7 @@
 import { promptStore } from "../storage/active-prompt-store.ts";
 import { saveStatusIndicator, titleInput } from "./elements.ts";
 import { renamePrompt } from "./prompt-actions.ts";
+import { notify } from "./notices.ts";
 import { editorState } from "./state.ts";
 
 const AUTOSAVE_DELAY_MS = 500;
@@ -66,7 +67,7 @@ async function renameCurrentPromptFromTitle(): Promise<void> {
   }
   const error = await renamePrompt(prompt.folder, prompt.name, name);
   if (error) {
-    alert(error);
+    notify(error, { kind: "error" });
     titleInput.value = prompt.name;
   }
 }

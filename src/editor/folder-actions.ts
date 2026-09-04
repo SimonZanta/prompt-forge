@@ -3,6 +3,7 @@ import { childPath } from "../storage/prompt-store.ts";
 import { flushPendingSave } from "./autosave.ts";
 import { renderTree } from "./folder-tree.ts";
 import { childFolders, isFolderEmpty, refreshLibrary, rekeyExpanded, uniqueName } from "./library.ts";
+import { notifyError } from "./notices.ts";
 import { relocateOpenPrompt } from "./prompt-actions.ts";
 import { editorState } from "./state.ts";
 
@@ -19,7 +20,7 @@ export async function createFolder(parent: string | null): Promise<void> {
   try {
     await promptStore().createFolder(path);
   } catch (error) {
-    alert(errorMessage(error));
+    notifyError(error);
     return;
   }
   await refreshLibrary();
@@ -51,7 +52,7 @@ export async function deleteFolder(path: string): Promise<void> {
   try {
     await promptStore().deleteFolder(path);
   } catch (error) {
-    alert(errorMessage(error));
+    notifyError(error);
     return;
   }
   editorState.expandedFolders.delete(path);

@@ -24,6 +24,7 @@ function createMemoryBackend(): PromptStoreBackend {
     readPrompt: async (path, prompt) => folder(path).get(prompt)!,
     writePrompt: async (path, prompt, content) => { folder(path).set(prompt, content); },
     renamePrompt: async (path, prompt, newPrompt) => { folder(path).set(newPrompt, folder(path).get(prompt)!); folder(path).delete(prompt); },
+    movePrompt: async (path, prompt, target) => { folder(target).set(prompt, folder(path).get(prompt)!); folder(path).delete(prompt); },
     deletePrompt: async (path, prompt) => { folder(path).delete(prompt); },
   };
 }
@@ -111,5 +112,21 @@ describe("createPromptStore", () => {
 
     await store.deletePrompt("work", "Todo");
     expect(store.readPrompt("work", "Todo")).rejects.toThrow("prompt not found");
+  });
+
+  test("moves prompts between folders, refusing missing targets and name clashes", async () => {
+    const store = createPromptStore(createMemoryBackend());
+    await store.createFolder("work");
+    await store.createFolder("work/archive");
+    await store.createPrompt("work", "Tasks", "<tasks/>");
+    await store.createPrompt("work/archive", "Old", "<old/>");
+    expect(store.movePrompt("work", "Tasks", "nope")).rejects.toThrow("folder not found");
+    expect(store.movePrompt("work", "Missing", "work/archive")).rejects.toThrow("prompt not found");
+    await store.movePrompt("work", "Tasks", "work"); // no-op
+    await store.movePrompt("work", "Tasks", "work/archive");
+    expect((await store.listPrompts("work")).map((prompt) => prompt.name)).toEqual([]);
+    expect(await store.readPrompt("work/archive", "Tasks")).toEqual({ name: "Tasks", content: "<tasks/>" });
+    await store.createPrompt("work", "Old", "");
+    expect(store.movePrompt("work/archive", "Old", "work")).rejects.toThrow("duplicate prompt");
   });
 });

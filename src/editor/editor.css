@@ -29,6 +29,11 @@
 .ftools { margin-left: auto; display: none; gap: 1px; flex: none; }
 .row:hover .ftools, .row:focus-within .ftools { display: flex; }
 .row:hover .ct, .row:focus-within .ct { display: none; }
+/* drag a prompt row onto a folder (or anything inside it) to move it there */
+.row[data-prompt] { cursor: grab; }
+.row.dragging { opacity: .4; }
+.row.dropping { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent-text); }
+.tree.drag-active .row:not(.dropping) .ftools { display: none; }
 .ftools button {
   width: 18px; height: 18px; display: grid; place-items: center;
   background: none; border: 0; padding: 0; cursor: pointer;
@@ -47,7 +52,8 @@
   padding: 8px 10px; border-top: 1px solid var(--border);
   font-size: 11px; color: var(--text-3);
 }
-.railstorage .storage-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.railstorage .storage-label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; }
+.railstorage .storage-label svg { width: 13px; height: 13px; flex: none; }
 .railstorage button {
   background: none; border: none; padding: 0; cursor: pointer;
   color: var(--text-2); font-size: 11px; text-decoration: underline dotted;
@@ -125,6 +131,11 @@ body.resizing { user-select: none; cursor: col-resize; }
 .canvas.no-prompt .addrow { display: none; }
 .block { border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; margin-bottom: 7px; background: var(--raised); min-width: 0; }
 .block.nested { border: 0; background: none; padding: 0; margin-bottom: 6px; }
+/* a focused block row is the keyboard cursor: arrows move it, Enter / "/" / Delete / F2 act on it */
+.block:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent); }
+.block.nested:focus-visible { box-shadow: none; }
+.block.nested:focus-visible > .bhead { box-shadow: 0 0 0 2px var(--accent); border-radius: 6px; margin: 0 -4px; padding: 0 4px; }
+.block:focus > .bhead > .tools { opacity: 1; }
 .bhead { display: flex; align-items: center; gap: 7px; min-height: 22px; min-width: 0; }
 .twist {
   width: 16px; height: 16px; display: grid; place-items: center; flex: none;
@@ -139,6 +150,11 @@ body.resizing { user-select: none; cursor: col-resize; }
 }
 /* chips carry a .tg-N class, so their text colour is the tag's XML colour (rules below); roots add a tint of it */
 .tag.root { background: color-mix(in srgb, currentColor 18%, transparent); }
+.tag[data-action="rename"] { cursor: text; }
+.tag[data-action="rename"]:hover { box-shadow: inset 0 0 0 1px var(--border-strong); }
+/* the chip turned into its inline rename field: same size and colour, so nothing jumps */
+.tagedit { border: 1px solid var(--accent); outline: none !important; padding: 0 5px; min-width: 5ch; max-width: 60%; }
+.tagedit.invalid { border-color: var(--danger); }
 .meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); white-space: nowrap; flex: none; }
 .peek { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .tools { margin-left: auto; display: flex; gap: 2px; opacity: 0; flex: none; }
@@ -353,3 +369,43 @@ body.resizing { user-select: none; cursor: col-resize; }
   color: var(--attr); opacity: .8;
   line-height: 20px;
 }
+
+/* ---------- in-app notices: toasts and the confirm dialog ---------- */
+.toasts {
+  position: fixed; z-index: 70; left: 16px; bottom: 16px;
+  display: flex; flex-direction: column; gap: 6px; max-width: min(420px, calc(100vw - var(--rail) - 48px));
+  pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px; pointer-events: auto;
+  background: var(--raised); border: 1px solid var(--border-strong); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); padding: 7px 8px 7px 11px; box-shadow: 0 6px 18px var(--shadow);
+  font-size: 12px; color: var(--text); animation: toast-in .15s ease-out;
+}
+.toast.error { border-left-color: var(--danger); }
+.toast.out { opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; }
+.toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-action {
+  flex: none; font-size: 11.5px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft);
+  border: 0; border-radius: 4px; padding: 3px 9px; cursor: pointer;
+}
+.toast-action:hover { filter: brightness(1.1); }
+.toast-close {
+  flex: none; width: 20px; height: 20px; display: grid; place-items: center; background: none; border: 0;
+  color: var(--text-3); cursor: pointer; border-radius: 4px; font-size: 15px; line-height: 1; padding: 0;
+}
+.toast-close:hover { color: var(--text); background: var(--surface); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.confirm {
+  background: var(--raised); color: var(--text); border: 1px solid var(--border-strong); border-radius: 10px;
+  padding: 16px 18px 14px; width: min(380px, calc(100vw - 32px)); box-shadow: 0 16px 40px var(--shadow);
+}
+.confirm::backdrop { background: rgba(0, 0, 0, .35); }
+.confirm-text { margin: 0 0 14px; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.confirm-actions .btn { margin-left: 0; padding: 5px 12px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent); color: #fff; filter: brightness(1.1); }
+.btn.primary.danger { background: var(--danger); border-color: var(--danger); }
+.btn.primary.danger:hover { background: var(--danger); }

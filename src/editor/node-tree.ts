@@ -59,6 +59,38 @@ export function collectTagNames(nodes: PromptNode[], into = new Set<string>()): 
   return into;
 }
 
+/** Every tag name referenced as a `[[tag]]` link in any text of the tree, in document order. */
+export function collectLinkedTagNames(nodes: PromptNode[], into = new Set<string>()): Set<string> {
+  for (const node of nodes) {
+    for (const match of node.text.matchAll(LINK_PATTERN)) into.add(match[1]);
+    collectLinkedTagNames(node.children, into);
+  }
+  return into;
+}
+
+const LINK_PATTERN = /\[\[([A-Za-z_][\w.:-]*)\]\]/g;
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Renames a tag everywhere in the tree: every node carrying `oldName` and every `[[oldName]]` link in
+ * any text. Returns how many nodes and links changed (0 when nothing used the old name).
+ */
+export function renameTagEverywhere(nodes: PromptNode[], oldName: string, newName: string): number {
+  if (oldName === newName) return 0;
+  const linkPattern = new RegExp("\\[\\[" + escapeRegExp(oldName) + "\\]\\]", "g");
+  let changed = 0;
+  const walk = (list: PromptNode[]) => {
+    for (const node of list) {
+      if (node.tag === oldName) { node.tag = newName; changed++; }
+      const text = node.text.replace(linkPattern, () => { changed++; return `[[${newName}]]`; });
+      if (text !== node.text) node.text = text;
+      walk(node.children);
+    }
+  };
+  walk(nodes);
+  return changed;
+}
+
 export function countWords(text: string): number {
   const trimmed = text.trim();
   return trimmed ? trimmed.split(/\s+/).length : 0;

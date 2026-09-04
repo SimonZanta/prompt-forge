@@ -7,6 +7,7 @@ import { renderTree } from "./folder-tree.ts";
 import { refreshHighlight } from "./highlight-layer.ts";
 import { legacyRewriteNeeded, migrateLegacyXml } from "./legacy-xml.ts";
 import { childFolders, expandPathTo, promptsIn, refreshLibrary, uniqueName } from "./library.ts";
+import { confirmDialog, notify, notifyError } from "./notices.ts";
 import { parsePromptXml, type PromptTree } from "./node-tree.ts";
 import { editorState } from "./state.ts";
 import { closeSuggestions } from "./suggestions.ts";
@@ -93,7 +94,7 @@ export async function createPromptIn(folder: string): Promise<void> {
   try {
     await promptStore().createPrompt(folder, name, NEW_PROMPT_CONTENT);
   } catch (error) {
-    alert(errorMessage(error));
+    notifyError(error);
     return;
   }
   await refreshLibrary();
@@ -104,11 +105,11 @@ export async function createPromptIn(folder: string): Promise<void> {
 
 /** Deletes a prompt after confirmation; if it was open, its folder's first remaining prompt is opened. */
 export async function deletePrompt(folder: string, name: string): Promise<void> {
-  if (!confirm(`Delete "${name}"?`)) return;
+  if (!(await confirmDialog(`Delete "${name}"?`, { confirmLabel: "Delete", danger: true }))) return;
   try {
     await promptStore().deletePrompt(folder, name);
   } catch (error) {
-    alert(errorMessage(error));
+    notifyError(error);
     return;
   }
   const current = editorState.currentPrompt;
@@ -137,6 +138,27 @@ export async function renamePrompt(folder: string, name: string, newName: string
   updateHeader();
   renderTree();
   return null;
+}
+
+/** Moves a prompt into another folder (rail drag and drop); the open prompt follows if it was the one moved. */
+export async function movePrompt(folder: string, name: string, targetFolder: string): Promise<void> {
+  if (folder === targetFolder) return;
+  await flushPendingSave();
+  try {
+    await promptStore().movePrompt(folder, name, targetFolder);
+  } catch (error) {
+    notifyError(error);
+    return;
+  }
+  const current = editorState.currentPrompt;
+  if (current && current.folder === folder && current.name === name) {
+    current.folder = targetFolder;
+    updateHeader();
+  }
+  await refreshLibrary();
+  expandPathTo(targetFolder);
+  renderTree();
+  notify(`Moved "${name}" to ${targetFolder.split("/").join(" / ")}`);
 }
 
 /** After a folder moved from `oldPath` to `newPath`, points the open prompt at its new folder. */

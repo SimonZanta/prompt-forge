@@ -2,7 +2,7 @@ import { scheduleSave } from "./autosave.ts";
 import { createBlockEditor, type BlockEditor } from "./block-editor.ts";
 import { canvasElement } from "./elements.ts";
 import { openInsertMenu } from "./insert-menu.ts";
-import { collectTagNames, serializeTree } from "./node-tree.ts";
+import { collectLinkedTagNames, collectTagNames, serializeTree } from "./node-tree.ts";
 import { editorState } from "./state.ts";
 import { bindBlockRenderer } from "./view-toggle.ts";
 
@@ -10,8 +10,12 @@ import { bindBlockRenderer } from "./view-toggle.ts";
 
 let canvas: BlockEditor;
 
+/** Tags the menus offer first: every block's tag plus every `[[tag]]` referenced in text, so a tag linked
+ *  before its block exists is picked from the list instead of retyped. */
 function tagsInUse(): Iterable<string> {
-  return editorState.currentPrompt?.tree ? collectTagNames(editorState.currentPrompt.tree.nodes) : [];
+  const nodes = editorState.currentPrompt?.tree?.nodes;
+  if (!nodes) return [];
+  return new Set([...collectTagNames(nodes), ...collectLinkedTagNames(nodes)]);
 }
 
 function afterChange(): void {
@@ -50,7 +54,7 @@ export function bindPromptCanvas(): void {
   bindBlockRenderer(renderCanvas);
 
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("input, textarea, [contenteditable]")) return;
     if (editorState.page !== "editor" || editorState.view !== "blocks" || !editorState.currentPrompt?.tree) return;
