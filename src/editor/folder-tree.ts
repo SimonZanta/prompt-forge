@@ -3,7 +3,7 @@ import { pathSegments, type Folder } from "../storage/prompt-store.ts";
 import { newFolderButton, searchInput, treeElement } from "./elements.ts";
 import { createFolder, deleteFolder, renameFolder } from "./folder-actions.ts";
 import { childFolders, countPromptsBelow, isFolderEmpty, promptsIn } from "./library.ts";
-import { createPromptIn, deletePrompt, renamePrompt, selectPrompt } from "./prompt-actions.ts";
+import { createPromptIn, deletePrompt, movePrompt, renamePrompt, selectPrompt } from "./prompt-actions.ts";
 import { editorState } from "./state.ts";
 import { hideTooltip } from "./tooltip.ts";
 
@@ -76,6 +76,7 @@ function renderFolder(folder: Folder, depth: number, query: string): Node[] {
     const item = row(isOpen ? "on" : "", svgIcon("file"));
     item.dataset.prompt = prompt.name;
     item.dataset.folder = folder.path;
+    item.draggable = true;
     if (isOpen) item.setAttribute("aria-current", "true");
     item.appendChild(isRenaming ? renamer(prompt.name, "Prompt name") : element("span", "nm", prompt.name));
     item.appendChild(element("span", "ftools",
@@ -199,9 +200,69 @@ function toggleFolder(path: string, rowElement?: HTMLElement): void {
   if (rowElement) treeElement.querySelector<HTMLElement>(`.row[data-folder="${CSS.escape(path)}"]:not([data-prompt])`)?.focus();
 }
 
+// ---------- drag a prompt onto a folder ----------
+
+const DRAG_TYPE = "application/x-prompt-forge-prompt";
+let draggedPrompt: { folder: string; name: string } | null = null;
+
+/** The folder a drop on `target` would move into: a folder row itself, a prompt's or "New prompt" row's folder. */
+function dropFolderAt(target: EventTarget | null): { path: string; row: HTMLElement } | null {
+  const rowElement = target instanceof Element ? target.closest<HTMLElement>(".row") : null;
+  if (!rowElement) return null;
+  const path = rowElement.dataset.new ?? rowElement.dataset.folder;
+  if (!path) return null;
+  const head = treeElement.querySelector<HTMLElement>(`.row[data-folder="${CSS.escape(path)}"]:not([data-prompt])`);
+  return { path, row: head ?? rowElement };
+}
+
+const clearDropMarkers = () => treeElement.querySelectorAll(".dropping").forEach((el) => el.classList.remove("dropping"));
+
+function endPromptDrag(): void {
+  draggedPrompt = null;
+  clearDropMarkers();
+  treeElement.classList.remove("drag-active");
+  treeElement.querySelectorAll(".dragging").forEach((el) => el.classList.remove("dragging"));
+}
+
+function bindPromptDragAndDrop(): void {
+  treeElement.addEventListener("dragstart", (event) => {
+    const rowElement = (event.target as HTMLElement).closest<HTMLElement>(".row[data-prompt]");
+    if (!rowElement || rowElement.querySelector("[data-renamer]")) return event.preventDefault();
+    draggedPrompt = { folder: rowElement.dataset.folder!, name: rowElement.dataset.prompt! };
+    event.dataTransfer!.effectAllowed = "move";
+    event.dataTransfer!.setData(DRAG_TYPE, JSON.stringify(draggedPrompt));
+    event.dataTransfer!.setData("text/plain", draggedPrompt.name);
+    hideTooltip();
+    rowElement.classList.add("dragging");
+    treeElement.classList.add("drag-active");
+  });
+  treeElement.addEventListener("dragover", (event) => {
+    if (!draggedPrompt) return;
+    const drop = dropFolderAt(event.target);
+    clearDropMarkers();
+    if (!drop || drop.path === draggedPrompt.folder) return;
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = "move";
+    drop.row.classList.add("dropping");
+  });
+  treeElement.addEventListener("dragleave", (event) => {
+    if (!treeElement.contains(event.relatedTarget as Node | null)) clearDropMarkers();
+  });
+  treeElement.addEventListener("drop", (event) => {
+    const drop = dropFolderAt(event.target);
+    const dragged = draggedPrompt;
+    endPromptDrag();
+    if (!drop || !dragged || drop.path === dragged.folder) return;
+    event.preventDefault();
+    void movePrompt(dragged.folder, dragged.name, drop.path);
+  });
+  treeElement.addEventListener("dragend", endPromptDrag);
+}
+
 // ---------- events ----------
 
 export function bindFolderTree(): void {
+  bindPromptDragAndDrop();
   treeElement.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     if (target.closest("[data-renamer]")) return;

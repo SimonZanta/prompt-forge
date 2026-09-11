@@ -7,6 +7,7 @@ import {
   storageStatus,
   useBrowserStorage,
 } from "../storage/active-prompt-store.ts";
+import { svgIcon } from "../shared/icons.ts";
 import { supportsFolderStorage } from "../storage/directory-handle.ts";
 import { flushPendingSave } from "./autosave.ts";
 import {
@@ -18,6 +19,7 @@ import {
 } from "./elements.ts";
 import { renderTree } from "./folder-tree.ts";
 import { refreshLibrary } from "./library.ts";
+import { confirmDialog, notifyError } from "./notices.ts";
 import { clearEditor, openInitialPrompt } from "./prompt-actions.ts";
 import { editorState } from "./state.ts";
 
@@ -36,7 +38,7 @@ export function renderStorageBar(): void {
     storageLabel.textContent = "browser storage";
     storageLabel.title = "Prompts are kept in this browser only";
   } else {
-    storageLabel.textContent = "📁 " + status.folderName;
+    storageLabel.replaceChildren(svgIcon("folder"), status.folderName);
     storageLabel.title = status.mode === "folder"
       ? "Prompts are read from and saved to this folder"
       : "Click Reconnect to allow access to this folder again";
@@ -60,12 +62,14 @@ async function openFolder(): Promise<void> {
   try {
     status = await openFolderStorage();
   } catch (error) {
-    alert(error instanceof Error ? error.message : String(error));
+    notifyError(error);
     return;
   }
   if (!status) return;
   if (browserPromptCount > 0 && status.mode === "folder" &&
-      confirm(`Copy ${browserPromptCount} prompt(s) from browser storage into "${status.folderName}"?\nFiles already in the folder are kept.`)) {
+      (await confirmDialog(
+        `Copy ${browserPromptCount} prompt(s) from browser storage into "${status.folderName}"? Files already in the folder are kept.`,
+        { confirmLabel: "Copy", cancelLabel: "Skip" }))) {
     await copyBrowserPromptsInto(promptStore());
   }
   await reloadAfterSwitch();

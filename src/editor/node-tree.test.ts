@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  cloneNodes, collectTagNames, countWords, createNode, dedentText, escapeXmlText, findNode, serializeTree,
+  cloneNodes, collectLinkedTagNames, collectTagNames, countWords, createNode, dedentText, escapeXmlText, findNode,
+  renameTagEverywhere, serializeTree,
 } from "./node-tree.ts";
 
 const tree = () => ({
@@ -72,6 +73,25 @@ describe("tree helpers", () => {
     expect([...collectTagNames(tree().nodes)]).toEqual(["context", "task", "rules", "rule"]);
     expect(countWords("  two   words ")).toBe(2);
     expect(countWords("")).toBe(0);
+  });
+  test("collectLinkedTagNames finds [[links]] at every depth, once each", () => {
+    const nodes = [createNode("task", "see [[rules]] and [[context]]", [createNode("note", "again [[rules]], not [[bad name]]")])];
+    expect([...collectLinkedTagNames(nodes)]).toEqual(["rules", "context"]);
+  });
+  test("renameTagEverywhere renames nodes and links, leaves other names alone", () => {
+    const nodes = [
+      createNode("rule", "first", [createNode("rule", "nested [[rule]]"), createNode("rules", "keep [[rules]]")]),
+      createNode("task", "apply [[rule]] and [[rule]]"),
+    ];
+    expect(renameTagEverywhere(nodes, "rule", "constraint")).toBe(5);
+    expect(nodes[0].tag).toBe("constraint");
+    expect(nodes[0].children[0].tag).toBe("constraint");
+    expect(nodes[0].children[0].text).toBe("nested [[constraint]]");
+    expect(nodes[0].children[1].tag).toBe("rules");
+    expect(nodes[0].children[1].text).toBe("keep [[rules]]");
+    expect(nodes[1].text).toBe("apply [[constraint]] and [[constraint]]");
+    expect(renameTagEverywhere(nodes, "nothing", "x")).toBe(0);
+    expect(renameTagEverywhere(nodes, "task", "task")).toBe(0);
   });
   test("escapeXmlText leaves > alone", () => {
     expect(escapeXmlText("a < b & c > d")).toBe("a &lt; b &amp; c > d");

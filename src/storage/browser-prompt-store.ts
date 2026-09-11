@@ -98,6 +98,15 @@ const browserBackend: PromptStoreBackend = {
     });
   },
 
+  async movePrompt(folder, name, targetFolder) {
+    const row = await idbGet<PromptRow>(IDB_STORES.prompts, promptKey(folder, name));
+    if (!row) return;
+    await withStore(IDB_STORES.prompts, "readwrite", (store) => {
+      store.delete(promptKey(folder, name));
+      store.put({ ...row, folder: targetFolder }, promptKey(targetFolder, name));
+    });
+  },
+
   deletePrompt: (folder, name) =>
     withStore(IDB_STORES.prompts, "readwrite", (store) => { store.delete(promptKey(folder, name)); }),
 };

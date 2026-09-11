@@ -44,6 +44,8 @@ export interface PromptStore {
   createPrompt(folder: string, name: string, content: string): Promise<Prompt>;
   writePrompt(folder: string, name: string, content: string): Promise<void>;
   renamePrompt(folder: string, name: string, newName: string): Promise<Prompt>;
+  /** Moves a prompt into another existing folder, keeping its name; rejects when that name is taken there. */
+  movePrompt(folder: string, name: string, targetFolder: string): Promise<void>;
   deletePrompt(folder: string, name: string): Promise<void>;
 }
 
@@ -59,6 +61,7 @@ export interface PromptStoreBackend {
   readPrompt(folder: string, name: string): Promise<string>;
   writePrompt(folder: string, name: string, content: string): Promise<void>;
   renamePrompt(folder: string, name: string, newName: string): Promise<void>;
+  movePrompt(folder: string, name: string, targetFolder: string): Promise<void>;
   deletePrompt(folder: string, name: string): Promise<void>;
 }
 
@@ -169,6 +172,14 @@ export function createPromptStore(backend: PromptStoreBackend): PromptStore {
         await backend.renamePrompt(folder, name, newName);
       }
       return { name: newName, content: await backend.readPrompt(folder, newName) };
+    },
+
+    async movePrompt(folder, name, targetFolder) {
+      await requirePrompt(folder, name);
+      if (targetFolder === folder) return;
+      await requireFolder(targetFolder);
+      await requireFreePromptName(targetFolder, name);
+      await backend.movePrompt(folder, name, targetFolder);
     },
 
     async deletePrompt(folder, name) {

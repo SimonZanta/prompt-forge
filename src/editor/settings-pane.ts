@@ -8,7 +8,8 @@ import { loadBlocks } from "./custom-blocks.ts";
 import { createDebouncedSaver } from "./debounced-saver.ts";
 import { settingsPane, settingsStatus } from "./elements.ts";
 import { describeFragment, openInsertMenu } from "./insert-menu.ts";
-import { collectTagNames, createNode, parseFragmentXml, serializeNodes, type PromptNode } from "./node-tree.ts";
+import { collectLinkedTagNames, collectTagNames, createNode, parseFragmentXml, serializeNodes, type PromptNode } from "./node-tree.ts";
+import { confirmDialog } from "./notices.ts";
 import { loadPermanentTags } from "./permanent-tags.ts";
 
 /**
@@ -111,8 +112,8 @@ function renderBlockCard(card: BlockCard): HTMLElement {
   }
 
   const remove = iconButton("x", "Delete block");
-  remove.addEventListener("click", () => {
-    if (!confirm(`Delete block "${card.block.command}"?`)) return;
+  remove.addEventListener("click", async () => {
+    if (!(await confirmDialog(`Delete block "${card.block.command}"?`, { confirmLabel: "Delete", danger: true }))) return;
     cards = cards.filter((other) => other !== card);
     persistBlocks();
     renderSettings();
@@ -130,6 +131,7 @@ function renderBlockCard(card: BlockCard): HTMLElement {
   let body: HTMLElement;
   if (card.mode === "blocks" && card.nodes) {
     const nodes = card.nodes;
+    const tagsInUse = () => new Set([...collectTagNames(nodes), ...collectLinkedTagNames(nodes)]);
     body = element("div", "cbedit");
     const editor = createBlockEditor(body, {
       getNodes: () => nodes,
@@ -139,9 +141,9 @@ function renderBlockCard(card: BlockCard): HTMLElement {
         persistBlocks();
       },
       onInsert: (anchor, parentId) =>
-        openInsertMenu({ mode: "insert", anchor, tagsInUse: collectTagNames(nodes), onPick: (picked) => editor.insert(parentId, picked) }),
+        openInsertMenu({ mode: "insert", anchor, tagsInUse: tagsInUse(), onPick: (picked) => editor.insert(parentId, picked) }),
       onLinkRequest: (anchor, insertLink) =>
-        openInsertMenu({ mode: "link", anchor, tagsInUse: collectTagNames(nodes), onPick: insertLink }),
+        openInsertMenu({ mode: "link", anchor, tagsInUse: tagsInUse(), onPick: insertLink }),
     });
     editor.render();
   } else {

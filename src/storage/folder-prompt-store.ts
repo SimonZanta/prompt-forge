@@ -152,6 +152,12 @@ export function createFolderPromptStore(root: FileSystemDirectoryHandle): Prompt
       await directory.removeEntry(name + PROMPT_EXTENSION);
     },
 
+    async movePrompt(folder, name, targetFolder) {
+      const source = await directoryFor(folder);
+      await writeText(await directoryFor(targetFolder), name + PROMPT_EXTENSION, await readText(source, name + PROMPT_EXTENSION));
+      await source.removeEntry(name + PROMPT_EXTENSION);
+    },
+
     async deletePrompt(folder, name) {
       await (await directoryFor(folder)).removeEntry(name + PROMPT_EXTENSION);
     },

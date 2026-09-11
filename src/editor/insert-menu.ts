@@ -185,11 +185,13 @@ export function openInsertMenu(nextRequest: InsertMenuRequest): void {
   query.focus();
 }
 
-/** Closes the menu; `restoreFocus` puts focus back on the element that opened it (Escape). */
+/** Closes the menu; `restoreFocus` puts focus back where it was (Escape): the anchor, or the focusable block row around it. */
 export function closeInsertMenu(restoreFocus: boolean): void {
   if (!menu || menu.hidden) return;
   menu.hidden = true;
   const anchor = request?.anchor;
   request = null;
-  if (restoreFocus && anchor?.isConnected) anchor.focus();
+  if (!restoreFocus || !anchor?.isConnected) return;
+  const focusable = anchor.matches("[tabindex], button, input, textarea, [contenteditable]") ? anchor : anchor.closest<HTMLElement>("[tabindex]");
+  focusable?.focus();
 }
